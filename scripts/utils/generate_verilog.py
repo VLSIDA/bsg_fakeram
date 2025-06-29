@@ -480,13 +480,3 @@ module {name} (
 
 endmodule
 '''
-
-# Update template formatting to handle the conditional parameters
-def format_template(template, **kwargs):
-  '''Format template with proper parameter handling'''
-  # Handle byte-write specific formatting
-  if 'has_byte_write' in kwargs:
-    params = generate_byte_write_params(kwargs['has_byte_write'], kwargs.get('num_bytes', 0))
-    kwargs.update(params)
-  
-  return template.format(**kwargs)
