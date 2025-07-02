@@ -221,7 +221,8 @@ def generate_byte_write_logic(has_byte_write, num_bytes):
     return 'mem[addr0] <= din0;'
   
   logic = ''
-  logic += f'if (wmask0[0])\n'
+  logic += f'''if (wmask0[0])
+               mem[addr0][7:0] <= din0[7:0];\n'''
   for i in range(1, num_bytes):
     logic += f'''            if (wmask0[{i}])
               mem[addr0][{i*8+7}:{i*8}] <= din0[{i*8+7}:{i*8}];\n'''
