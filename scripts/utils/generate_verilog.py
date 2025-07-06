@@ -221,7 +221,8 @@ def generate_byte_write_logic(has_byte_write, num_bytes):
     return 'mem[addr0] <= din0;'
   
   logic = ''
-  logic += f'if (wmask0[0])\n'
+  logic += f'''if (wmask0[0])
+               mem[addr0][7:0] <= din0[7:0];\n'''
   for i in range(1, num_bytes):
     logic += f'''            if (wmask0[{i}])
               mem[addr0][{i*8+7}:{i*8}] <= din0[{i*8+7}:{i*8}];\n'''
@@ -480,13 +481,3 @@ module {name} (
 
 endmodule
 '''
-
-# Update template formatting to handle the conditional parameters
-def format_template(template, **kwargs):
-  '''Format template with proper parameter handling'''
-  # Handle byte-write specific formatting
-  if 'has_byte_write' in kwargs:
-    params = generate_byte_write_params(kwargs['has_byte_write'], kwargs.get('num_bytes', 0))
-    kwargs.update(params)
-  
-  return template.format(**kwargs)
