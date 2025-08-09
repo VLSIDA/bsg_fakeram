@@ -249,9 +249,8 @@ def generate_lef( mem ):
     pin_layer_number = metalLayerPins.replace(metal_prefix, "", 1).strip('"')
     for x in range(int(pin_layer_number)) :
       dummy = x + 1
-      if (flip and dummy != 3):
-        fid.write('    LAYER %s%d ;\n' % (metal_prefix,dummy))
-        fid.write('    RECT 0 0 %.3f %.3f ;\n' % (w,h))
+      fid.write('    LAYER %s%d ;\n' % (metal_prefix,dummy))
+      fid.write('    RECT 0 0 %.3f %.3f ;\n' % (w,h))
     
     # TODO
     if (mem.process.tech_nm != 7):

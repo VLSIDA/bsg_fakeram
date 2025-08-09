@@ -6,7 +6,7 @@ import math
 TODO: Make area.py flexible across different designs
 """
 def get_macro_dimensions(mem) -> int:
-  Y_ASYMMETRIC_SRAM_SCALING = 1/2 # Adjusts to number of pins anyways
+  Y_ASYMMETRIC_SRAM_SCALING = 1/8 # Adjusts to number of pins anyways
 
   # DYNAMIC SIZING
   if mem.is_asymmetric:
