@@ -43,6 +43,10 @@ def get_args() -> argparse.Namespace:
         "--cacti_dir", action="store", help="CACTI installation directory ", required=False, default=None
     )
 
+    parser.add_argument(
+      "--custom_tech_dir", action="store", help="Custom tech directory ", required=False, default=None
+    )
+
     return parser.parse_args()
 
 
@@ -58,10 +62,10 @@ def main ( args : argparse.Namespace):
 
   # Go through each sram and generate the lib, lef and v files
   for sram_data in json_data['srams']:
-    memory = Memory(process, sram_data, args.output_dir, args.cacti_dir)
+    memory = Memory(process, sram_data, args.output_dir, args.cacti_dir, args.custom_tech_dir)
     generate_lib(memory)
     generate_lef(memory)
-    generate_verilog(memory, tmChkExpand=process.vlogTimingCheckSignalExpansion)
+    generate_verilog(memory)
     generate_verilog_bb(memory)
 
 ### Entry point
