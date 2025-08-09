@@ -29,19 +29,16 @@ def generate_lib( mem ):
     min_period        = float(mem.cycle_time_ns)
     fo4               = float(mem.fo4_ps)/1e3
 
-    # Only support 1RW srams. At some point, expose these as well!
-    unique_clks = list(set(x for sub in mem.port_clks for x in sub))
-    
-    num_rwport                = int(mem.rw_ports)
-    num_rport                 = int(mem.r_ports)
-    num_wport                 = int(mem.w_ports)
-    rw_clks, r_clks, w_clks   = mem.port_clks
+    # Dynamic Ports
+    num_rport = mem.r
+    num_wport = mem.w  
+    num_rwport = mem.rw
+    # num_wmask = mem.wmask
+    has_wmask = mem.has_write_mask
 
-    write_mode                = str(mem.write_mode)
-    byte_write                = 1 if int(mem.write_granularity) == 8 else 0
     # Number of bits for address
-    addr_width        = math.ceil(math.log2(mem.depth))
-    addr_width_m1     = addr_width-1
+    addr_width    = math.ceil(math.log2(mem.depth))
+    addr_width_m1 = addr_width-1
 
     # Get the date
     d = datetime.date.today()
@@ -73,967 +70,31 @@ def generate_lib( mem ):
 
     LIB_file = open(os.sep.join([mem.results_dir, name + '.lib']), 'w')
 
-    LIB_file.write( 'library(%s) {\n' % name)
-    LIB_file.write( '    technology (cmos);\n')
-    LIB_file.write( '    delay_model : table_lookup;\n')
-    LIB_file.write( '    revision : 1.0;\n')
-    LIB_file.write( '    date : "%s %s";\n' % (date, current_time))
-    LIB_file.write( '    comment : "SRAM";\n')
-    LIB_file.write( '    time_unit : "1ns";\n')
-    LIB_file.write( '    voltage_unit : "1V";\n')
-    LIB_file.write( '    current_unit : "1uA";\n')
-    LIB_file.write( '    leakage_power_unit : "1uW";\n')
-    LIB_file.write( '    nom_process : 1;\n')
-    LIB_file.write( '    nom_temperature : 25.000;\n')
-    LIB_file.write( '    nom_voltage : %s;\n' % voltage)
-    LIB_file.write( '    capacitive_load_unit (1,pf);\n\n')
-    LIB_file.write( '    pulling_resistance_unit : "1kohm";\n\n')
-    LIB_file.write( '    operating_conditions(tt_1.0_25.0) {\n')
-    LIB_file.write( '        process : 1;\n')
-    LIB_file.write( '        temperature : 25.000;\n')
-    LIB_file.write( '        voltage : %s;\n' % voltage)
-    LIB_file.write( '        tree_type : balanced_tree;\n')
-    LIB_file.write( '    }\n')
-    LIB_file.write( '\n')
+    write_init_lib(LIB_file, name, voltage, date, current_time, bits, area, max_slew, addr_width, addr_width_m1)
 
-    LIB_file.write( '    /* default attributes */\n')
-    LIB_file.write( '    default_cell_leakage_power : 0;\n')
-    LIB_file.write( '    default_fanout_load : 1;\n')
-    LIB_file.write( '    default_inout_pin_cap : 0.0;\n')
-    LIB_file.write( '    default_input_pin_cap : 0.0;\n')
-    LIB_file.write( '    default_output_pin_cap : 0.0;\n')
-    LIB_file.write( '    default_input_pin_cap : 0.0;\n')
-    LIB_file.write( '    default_max_transition : %.3f;\n\n' % max_slew)
-    LIB_file.write( '    default_operating_conditions : tt_1.0_25.0;\n')
-    LIB_file.write( '    default_leakage_power_density : 0.0;\n')
-    LIB_file.write( '\n')
+    if num_rport > 0:
+      write_clk_ports(LIB_file, num_rport, 'r', name, slew_indicies, min_driver_in_cap, clkpindynamic, min_period)
 
-    LIB_file.write( '    /* additional header data */\n')
-    LIB_file.write( '    slew_derate_from_library : 1.000;\n')
-    LIB_file.write( '    slew_lower_threshold_pct_fall : 20.000;\n')
-    LIB_file.write( '    slew_upper_threshold_pct_fall : 80.000;\n')
-    LIB_file.write( '    slew_lower_threshold_pct_rise : 20.000;\n')
-    LIB_file.write( '    slew_upper_threshold_pct_rise : 80.000;\n')
-    LIB_file.write( '    input_threshold_pct_fall : 50.000;\n')
-    LIB_file.write( '    input_threshold_pct_rise : 50.000;\n')
-    LIB_file.write( '    output_threshold_pct_fall : 50.000;\n')
-    LIB_file.write( '    output_threshold_pct_rise : 50.000;\n\n')
-    LIB_file.write( '\n')
+      write_lib_ports(LIB_file, num_rport, 'r', name, max_load, slew_indicies, load_indicies, tcq, \
+                      min_slew, max_slew, min_driver_in_cap, tsetup, thold, pindynamic)
 
+    if num_wport > 0:
+      write_clk_ports(LIB_file, num_wport, 'w', name, slew_indicies, min_driver_in_cap, clkpindynamic, min_period)
 
-    LIB_file.write( '    lu_table_template(%s_mem_out_delay_template) {\n' % name )
-    LIB_file.write( '        variable_1 : input_net_transition;\n')
-    LIB_file.write( '        variable_2 : total_output_net_capacitance;\n')
-    LIB_file.write( '            index_1 ("1000, 1001");\n')
-    LIB_file.write( '            index_2 ("1000, 1001");\n')
-    LIB_file.write( '    }\n')
-    LIB_file.write( '    lu_table_template(%s_mem_out_slew_template) {\n' % name )
-    LIB_file.write( '        variable_1 : total_output_net_capacitance;\n')
-    LIB_file.write( '            index_1 ("1000, 1001");\n')
-    LIB_file.write( '    }\n')
-    LIB_file.write( '    lu_table_template(%s_constraint_template) {\n' % name )
-    LIB_file.write( '        variable_1 : related_pin_transition;\n')
-    LIB_file.write( '        variable_2 : constrained_pin_transition;\n')
-    LIB_file.write( '            index_1 ("1000, 1001");\n')
-    LIB_file.write( '            index_2 ("1000, 1001");\n')
-    LIB_file.write( '    }\n')
-    LIB_file.write( '    power_lut_template(%s_energy_template_clkslew) {\n' % name )
-    LIB_file.write( '        variable_1 : input_transition_time;\n')
-    LIB_file.write( '            index_1 ("1000, 1001");\n')
-    LIB_file.write( '    }\n')
-    LIB_file.write( '    power_lut_template(%s_energy_template_sigslew) {\n' % name )
-    LIB_file.write( '        variable_1 : input_transition_time;\n')
-    LIB_file.write( '            index_1 ("1000, 1001");\n')
-    LIB_file.write( '    }\n')
-    LIB_file.write( '    library_features(report_delay_calculation);\n')
-    LIB_file.write( '    type (%s_DATA) {\n' % name )
-    LIB_file.write( '        base_type : array ;\n')
-    LIB_file.write( '        data_type : bit ;\n')
-    LIB_file.write( '        bit_width : %d;\n' % bits)
-    LIB_file.write( '        bit_from : %d;\n' % (int(bits)-1))
-    LIB_file.write( '        bit_to : 0 ;\n')
-    LIB_file.write( '        downto : true ;\n')
-    LIB_file.write( '    }\n')
-    LIB_file.write( '    type (%s_ADDRESS) {\n' % name)
-    LIB_file.write( '        base_type : array ;\n')
-    LIB_file.write( '        data_type : bit ;\n')
-    LIB_file.write( '        bit_width : %d;\n' % addr_width)
-    LIB_file.write( '        bit_from : %d;\n' % addr_width_m1)
-    LIB_file.write( '        bit_to : 0 ;\n')
-    LIB_file.write( '        downto : true ;\n')
-    LIB_file.write( '    }\n')
-    if byte_write: 
-        LIB_file.write( '    type (%s_WMASK) {\n' % name)
-        LIB_file.write( '        base_type : array ;\n')
-        LIB_file.write( '        data_type : bit ;\n')
-        LIB_file.write( '        bit_width : %d;\n' % (bits // 8))
-        LIB_file.write( '        bit_from : %d;\n' % ((bits // 8)-1))
-        LIB_file.write( '        bit_to : 0 ;\n')
-        LIB_file.write( '        downto : true ;\n')
-        LIB_file.write( '    }\n')
+      write_lib_ports(LIB_file, num_wport, 'w', name, max_load, slew_indicies, load_indicies, tcq, \
+                      min_slew, max_slew, min_driver_in_cap, tsetup, thold, pindynamic)
+      if has_wmask:
+        write_lib_wmask(LIB_file, num_wport, 'w', name, slew_indicies, min_driver_in_cap, tsetup, thold, pindynamic)
 
-    LIB_file.write( 'cell(%s) {\n' % name )
-    LIB_file.write( '    area : %.3f;\n' % area)
-    #LIB_file.write( '    dont_use : true;\n')
-    #LIB_file.write( '    dont_touch : true;\n')
-    LIB_file.write( '    interface_timing : true;\n')
-    LIB_file.write( '    memory() {\n')
-    LIB_file.write( '        type : ram;\n')
-    LIB_file.write( '        address_width : %d;\n' % addr_width)
-    LIB_file.write( '        word_width : %d;\n' % bits)
-    LIB_file.write( '    }\n')
+    if num_rwport > 0:
+      write_clk_ports(LIB_file, num_rwport, 'rw', name, slew_indicies, min_driver_in_cap, clkpindynamic, min_period)
+  
+      write_lib_ports(LIB_file, num_rwport, 'rw', name, max_load, slew_indicies, load_indicies, tcq, \
+                      min_slew, max_slew, min_driver_in_cap, tsetup, thold, pindynamic)
+      if has_wmask:
+        write_lib_wmask(LIB_file, num_rwport, 'rw', name, slew_indicies, min_driver_in_cap, tsetup, thold, pindynamic)
 
-    for i in unique_clks:
-      if (len(unique_clks) == 1) : 
-        LIB_file.write('    pin(clk)   {\n')
-      else:
-        LIB_file.write('    pin(clk%s)   {\n' % (i))
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap*5)) ;# Clk pin is usually higher cap for fanout control, assuming an x5 driver.
-      LIB_file.write('        clock : true;\n')
-      #LIB_file.write('        max_transition : 0.01;\n') # Max rise/fall time
-      #LIB_file.write('        min_pulse_width_high : %.3f ;\n' % (min_period))
-      #LIB_file.write('        min_pulse_width_low  : %.3f ;\n' % (min_period))
-      LIB_file.write('        min_period           : %.3f ;\n' % (min_period))
-      #LIB_file.write('        minimum_period(){\n')
-      #LIB_file.write('            constraint : %.3f ;\n' % min_period)
-      #LIB_file.write('            when : "1";\n')
-      #LIB_file.write('            sdf_cond : "1";\n')
-      #LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_clkslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (clkpindynamic, clkpindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_clkslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (clkpindynamic, clkpindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-      LIB_file.write('\n')
-
-    for i in range(int(num_rwport)) :
-      LIB_file.write('    bus(rd_out_rw%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_DATA;\n' % name)
-      LIB_file.write('        direction : output;\n')
-      LIB_file.write('        max_capacitance : %.3f;\n' % max_load) ;# Based on 32x inverter being a common max (or near max) inverter
-      LIB_file.write('        memory_read() {\n')
-      LIB_file.write('            address : addr_rw;\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : "clk%s" ;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : rising_edge;\n')
-      LIB_file.write('            timing_sense : non_unate;\n')
-      LIB_file.write('            cell_rise(%s_mem_out_delay_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % load_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tcq, tcq))
-      LIB_file.write('                  "%.3f, %.3f" \\\n' % (tcq, tcq))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            cell_fall(%s_mem_out_delay_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % load_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tcq, tcq))
-      LIB_file.write('                  "%.3f, %.3f" \\\n' % (tcq, tcq))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            rise_transition(%s_mem_out_slew_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % load_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (min_slew, max_slew))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_transition(%s_mem_out_slew_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % load_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (min_slew, max_slew))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
     
-    for i in range(int(num_rport)) :
-      LIB_file.write('    bus(rd_out_r%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_DATA;\n' % name)
-      LIB_file.write('        direction : output;\n')
-      LIB_file.write('        max_capacitance : %.3f;\n' % max_load) ;# Based on 32x inverter being a common max (or near max) inverter
-      LIB_file.write('        memory_read() {\n')
-      LIB_file.write('            address : addr_r%s;\n' % (i + 1))
-      LIB_file.write('        }\n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : "clk%s" ;\n' % (r_clks[min(num_rport, len(r_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : rising_edge;\n')
-      LIB_file.write('            timing_sense : non_unate;\n')
-      LIB_file.write('            cell_rise(%s_mem_out_delay_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % load_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tcq, tcq))
-      LIB_file.write('                  "%.3f, %.3f" \\\n' % (tcq, tcq))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            cell_fall(%s_mem_out_delay_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % load_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tcq, tcq))
-      LIB_file.write('                  "%.3f, %.3f" \\\n' % (tcq, tcq))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            rise_transition(%s_mem_out_slew_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % load_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (min_slew, max_slew))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_transition(%s_mem_out_slew_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % load_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (min_slew, max_slew))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-    
-    for i in range(int(num_rwport)) :
-      LIB_file.write('    pin(we_in_rw%s)   {\n' % (i + 1))
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_wport)) :
-      LIB_file.write('    pin(we_in_w%s)   {\n' % (i + 1))
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n'% (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_rwport)) :
-      LIB_file.write('    pin(ce_rw%s)   {\n' % (i + 1))
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_rport)) :
-      LIB_file.write('    pin(ce_r%s)   {\n' % (i + 1))
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (r_clks[min(num_rport, len(r_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (r_clks[min(num_rport, len(r_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_wport)) :
-      LIB_file.write('    pin(ce_w%s)   {\n' % (i + 1))
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_rwport)) :
-      LIB_file.write('    bus(addr_rw%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_ADDRESS;\n' % name)
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_rwport)) :
-      LIB_file.write('    bus(wd_in_rw%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_DATA;\n' % name)
-      LIB_file.write('        memory_write() {\n')
-      LIB_file.write('            address : addr_rw%s;\n' % (i + 1))
-      LIB_file.write('            clocked_on : "clk%s";\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('        }\n')
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin     : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type     : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin     : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type     : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            when : "(! (we_in_rw%s) )";\n' % (i + 1))
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            when : "(we_in_rw%s)";\n' % (i + 1))
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_wport)) :
-      LIB_file.write('    bus(wd_in_w%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_DATA;\n' % name)
-      LIB_file.write('        memory_write() {\n')
-      LIB_file.write('            address : addr_w%s;\n' % (i + 1))
-      LIB_file.write('            clocked_on : "clk";\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin     : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type     : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin     : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type     : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            when : "(! (we_in_w%s) )";\n' % (i + 1))
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            when : "(we_in_w%s)";\n' % (i + 1))
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_rwport)) :
-      LIB_file.write('    bus(w_mask_rw%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_DATA;\n' % name)
-      LIB_file.write('        memory_write() {\n')
-      LIB_file.write('            address : addr_rw%s;\n' % (i + 1))
-      LIB_file.write('            clocked_on : "clk";\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin     : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type     : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin     : clk%s;\n' % (rw_clks[min(num_rwport, len(rw_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type     : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            when : "(! (we_in_rw%s) )";\n' % (i + 1))
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            when : "(we_in_rw%s)";\n' % (i + 1))
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_rport)) :
-      LIB_file.write('    bus(addr_r%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_ADDRESS;\n' % name)
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (r_clks[min(num_rport, len(r_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (r_clks[min(num_rport, len(r_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_wport)) :
-      LIB_file.write('    bus(addr_w%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_ADDRESS;\n' % name)
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
-    for i in range(int(num_wport)) :
-      LIB_file.write('    bus(w_mask_w%s)   {\n' % (i + 1))
-      LIB_file.write('        bus_type : %s_DATA;\n' % name)
-      LIB_file.write('        memory_write() {\n')
-      LIB_file.write('            address : addr_w%s;\n' % (i + 1))
-      LIB_file.write('            clocked_on : "clk";\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin     : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type     : setup_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (tsetup, tsetup))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (tsetup, tsetup))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        } \n')
-      LIB_file.write('        timing() {\n')
-      LIB_file.write('            related_pin     : clk%s;\n' % (w_clks[min(num_wport, len(w_clks) - 1)] if len(unique_clks) != 1 else ''))
-      LIB_file.write('            timing_type     : hold_rising ;\n')
-      LIB_file.write('            rise_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_constraint(%s_constraint_template) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                index_2 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ( \\\n')
-      LIB_file.write('                  "%.3f, %.3f", \\\n' % (thold, thold))
-      LIB_file.write('                  "%.3f, %.3f" \\\n'  % (thold, thold))
-      LIB_file.write('                )\n')
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            when : "(! (we_in_w%s) )";\n' % (i + 1))
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('        internal_power(){\n')
-      LIB_file.write('            when : "(we_in_w%s)";\n' % (i + 1))
-      LIB_file.write('            rise_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('            fall_power(%s_energy_template_sigslew) {\n' % name)
-      LIB_file.write('                index_1 ("%s");\n' % slew_indicies)
-      LIB_file.write('                values ("%.3f, %.3f")\n' % (pindynamic, pindynamic))
-      LIB_file.write('            }\n')
-      LIB_file.write('        }\n')
-      LIB_file.write('    }\n')
-
     LIB_file.write('    cell_leakage_power : %.3f;\n' % (leakage))
     LIB_file.write('}\n')
 
@@ -1041,4 +102,497 @@ def generate_lib( mem ):
     LIB_file.write('}\n')
 
     LIB_file.close()
+
+########################################
+# Helper functions
+########################################
+
+def write_init_lib(LIB_file, name, voltage, date, current_time, bits, area, max_slew, addr_width, addr_width_m1) -> None:
+
+    LIB_file.write(f'library({name}) {{\n'
+                   f'    technology (cmos);\n'
+                   f'    delay_model : table_lookup;\n'
+                   f'    revision : 1.0;\n'
+                   f'    date : "{date} {current_time}";\n'
+                   f'    comment : "SRAM";\n'
+                   f'    time_unit : "1ns";\n'
+                   f'    voltage_unit : "1V";\n'
+                   f'    current_unit : "1uA";\n'
+                   f'    leakage_power_unit : "1uW";\n'
+                   f'    nom_process : 1;\n'
+                   f'    nom_temperature : 25.000;\n'
+                   f'    nom_voltage : {voltage};\n'
+                   f'    capacitive_load_unit (1,pf);\n\n'
+                   f'    pulling_resistance_unit : "1kohm";\n\n'
+                   f'    operating_conditions(tt_1.0_25.0) {{\n'
+                   f'        process : 1;\n'
+                   f'        temperature : 25.000;\n'
+                   f'        voltage : {voltage};\n'
+                   f'        tree_type : balanced_tree;\n'
+                   f'    }}\n'
+                   f'\n')
+
+    LIB_file.write( f'    /* default attributes */\n'
+                    f'    default_cell_leakage_power : 0;\n'
+                    f'    default_fanout_load : 1;\n'
+                    f'    default_inout_pin_cap : 0.0;\n'
+                    f'    default_input_pin_cap : 0.0;\n'
+                    f'    default_output_pin_cap : 0.0;\n'
+                    f'    default_input_pin_cap : 0.0;\n'
+                    f'    default_max_transition : {max_slew:.3f};\n\n'
+                    f'    default_operating_conditions : tt_1.0_25.0;\n'
+                    f'    default_leakage_power_density : 0.0;\n'
+                    f'\n')
+
+    LIB_file.write( f'    /* additional header data */\n'
+                    f'    slew_derate_from_library : 1.000;\n'
+                    f'    slew_lower_threshold_pct_fall : 20.000;\n'
+                    f'    slew_upper_threshold_pct_fall : 80.000;\n'
+                    f'    slew_lower_threshold_pct_rise : 20.000;\n'
+                    f'    slew_upper_threshold_pct_rise : 80.000;\n'
+                    f'    input_threshold_pct_fall : 50.000;\n'
+                    f'    input_threshold_pct_rise : 50.000;\n'
+                    f'    output_threshold_pct_fall : 50.000;\n'
+                    f'    output_threshold_pct_rise : 50.000;\n\n'
+                    f'\n'
+                    f'    lu_table_template({name}_mem_out_delay_template) {{\n' 
+                    f'        variable_1 : input_net_transition;\n'
+                    f'        variable_2 : total_output_net_capacitance;\n'
+                    f'            index_1 ("1000, 1001");\n'
+                    f'            index_2 ("1000, 1001");\n'
+                    f'    }}\n'
+                    f'    lu_table_template({name}_mem_out_slew_template) {{\n' 
+                    f'        variable_1 : total_output_net_capacitance;\n'
+                    f'            index_1 ("1000, 1001");\n'
+                    f'    }}\n'
+                    f'    lu_table_template({name}_constraint_template) {{\n' 
+                    f'        variable_1 : related_pin_transition;\n'
+                    f'        variable_2 : constrained_pin_transition;\n'
+                    f'            index_1 ("1000, 1001");\n'
+                    f'            index_2 ("1000, 1001");\n'
+                    f'    }}\n'
+                    f'    power_lut_template({name}_energy_template_clkslew) {{\n' 
+                    f'        variable_1 : input_transition_time;\n'
+                    f'            index_1 ("1000, 1001");\n'
+                    f'    }}\n'
+                    f'    power_lut_template({name}_energy_template_sigslew) {{\n' 
+                    f'        variable_1 : input_transition_time;\n'
+                    f'            index_1 ("1000, 1001");\n'
+                    f'    }}\n'
+                    f'    library_features(report_delay_calculation);\n'
+                    f'    type ({name}_DATA) {{\n' 
+                    f'        base_type : array ;\n'
+                    f'        data_type : bit ;\n'
+                    f'        bit_width : {bits};\n'
+                    f'        bit_from : {int(bits)-1};\n'
+                    f'        bit_to : 0 ;\n'
+                    f'        downto : true ;\n'
+                    f'    }}\n'
+                    f'    type ({name}_ADDRESS) {{\n'
+                    f'        base_type : array ;\n'
+                    f'        data_type : bit ;\n'
+                    f'        bit_width : {addr_width};\n'
+                    f'        bit_from : {addr_width_m1};\n'
+                    f'        bit_to : 0 ;\n'
+                    f'        downto : true ;\n'
+                    f'    }}\n')
+    
+    LIB_file.write( f'   cell({name}) {{\n'
+                    f'       area : {area:.3f};\n'
+                   #f'       dont_use : true;\n'
+                   #f'       dont_touch : true;\n'
+                    f'       interface_timing : true;\n'
+                    f'       memory() {{\n'
+                    f'           type : ram;\n'
+                    f'           address_width : {addr_width};\n'
+                    f'           word_width : {bits};\n'
+                    f'    }}\n')
+    
+
+def write_lib_ports(LIB_file, num_port, type_port, name, max_load, slew_indicies, load_indicies, tcq, min_slew, max_slew, min_driver_in_cap, tsetup, thold, pindynamic) -> None:
+    if type_port in ('r', 'rw'):
+      for i in range(num_port) :
+        LIB_file.write(f'    bus({type_port}{i}_rd_out)   {{\n'
+                      f'        bus_type : {name}_DATA;\n'
+                      f'        direction : output;\n'
+                      f'        max_capacitance : {max_load:.3f};\n' # Based on 32x inverter being a common max (or near max) inverter
+                      f'        memory_read() {{\n'
+                      f'            address : {type_port}{i}_addr_in;\n'
+                      f'        }}\n'
+                      f'        timing() {{\n'
+                      f'            related_pin : "{type_port}{i}_clk" ;\n'
+                      f'            timing_type : rising_edge;\n'
+                      f'            timing_sense : non_unate;\n'
+                      f'            cell_rise({name}_mem_out_delay_template) {{\n'
+                      f'                index_1 ("{slew_indicies}");\n'
+                      f'                index_2 ("{load_indicies}");\n'
+                      f'                values ( \\\n'
+                      f'                  "{tcq:.3f}, {tcq:.3f}", \\\n'
+                      f'                  "{tcq:.3f}, {tcq:.3f}" \\\n'
+                      f'                )\n'
+                      f'            }}\n'
+                      f'            cell_fall({name}_mem_out_delay_template) {{\n'
+                      f'                index_1 ("{slew_indicies}");\n'
+                      f'                index_2 ("{load_indicies}");\n'
+                      f'                values ( \\\n'
+                      f'                  "{tcq:.3f}, {tcq:.3f}", \\\n'
+                      f'                  "{tcq:.3f}, {tcq:.3f}" \\\n'
+                      f'                )\n'
+                      f'            }}\n'
+                      f'            rise_transition({name}_mem_out_slew_template) {{\n'
+                      f'                index_1 ("{load_indicies}");\n'
+                      f'                values ("{min_slew:.3f}, {max_slew:.3f}")\n'
+                      f'            }}\n'
+                      f'            fall_transition({name}_mem_out_slew_template) {{\n'
+                      f'                index_1 ("{load_indicies}");\n'
+                      f'                values ("{min_slew:.3f}, {max_slew:.3f}")\n'
+                      f'            }}\n'
+                      f'        }}\n'
+                      f'    }}\n')
+
+    if type_port in ('w','rw'):
+      for i in range(num_port) :
+        LIB_file.write(f'    pin({type_port}{i}_we_in){{\n'
+                      f'        direction : input;\n'
+                      f'        capacitance : {min_driver_in_cap:.3f};\n'
+                      f'        timing() {{\n'
+                      f'            related_pin : "{type_port}{i}_clk";\n'
+                      f'            timing_type : setup_rising ;\n'
+                      f'            rise_constraint({name}_constraint_template) {{\n'
+                      f'                index_1 ("{slew_indicies}");\n'
+                      f'                index_2 ("{slew_indicies}");\n'
+                      f'                values ( \\\n'
+                      f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                      f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'
+                      f'                )\n'
+                      f'            }}\n'
+                      f'            fall_constraint({name}_constraint_template) {{\n'
+                      f'                index_1 ("{slew_indicies}");\n'
+                      f'                index_2 ("{slew_indicies}");\n'
+                      f'                values ( \\\n'
+                      f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                      f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'
+                      f'                )\n'
+                      f'            }}\n'
+                      f'        }} \n'
+                      f'        timing() {{\n'
+                      f'            related_pin : "{type_port}{i}_clk";\n'
+                      f'            timing_type : hold_rising ;\n'
+                      f'            rise_constraint({name}_constraint_template) {{\n'
+                      f'                index_1 ("{slew_indicies}");\n'
+                      f'                index_2 ("{slew_indicies}");\n'
+                      f'                values ( \\\n'
+                      f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                      f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                      f'                )\n'
+                      f'            }}\n'
+                      f'            fall_constraint({name}_constraint_template) {{\n'
+                      f'                index_1 ("{slew_indicies}");\n'
+                      f'                index_2 ("{slew_indicies}");\n'
+                      f'                values ( \\\n'
+                      f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                      f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                      f'                )\n'
+                      f'            }}\n'
+                      f'        }}\n'
+                      f'        internal_power(){{\n'
+                      f'            rise_power({name}_energy_template_sigslew) {{\n'
+                      f'                index_1 ("{slew_indicies}");\n'
+                      f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                      f'            }}\n'
+                      f'            fall_power({name}_energy_template_sigslew) {{\n'
+                      f'                index_1 ("{slew_indicies}");\n'
+                      f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                      f'            }}\n'
+                      f'        }}\n'
+                      f'    }}\n')
+        
+      for i in range(num_port) :
+        LIB_file.write(f'    bus({type_port}{i}_wd_in)   {{\n'
+                       f'        bus_type : {name}_DATA;\n'
+                       f'        memory_write() {{\n'
+                       f'            address : {type_port}{i}_addr_in;\n'
+                       f'            clocked_on : "{type_port}{i}_clk";\n'
+                       f'        }}\n'
+                       f'        direction : input;\n'
+                       f'        capacitance : {min_driver_in_cap:.3f};\n'
+                       f'        timing() {{\n'
+                       f'            related_pin     : "{type_port}{i}_clk";\n'
+                       f'            timing_type     : setup_rising ;\n'
+                       f'            rise_constraint({name}_constraint_template) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                index_2 ("{slew_indicies}");\n'
+                       f'                values ( \\\n'
+                       f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n' 
+                       f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'  
+                       f'                )\n'
+                       f'            }}\n'
+                       f'            fall_constraint({name}_constraint_template) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                index_2 ("{slew_indicies}");\n'
+                       f'                values ( \\\n'
+                       f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                       f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n' 
+                       f'                )\n'
+                       f'            }}\n'
+                       f'        }} \n'
+                       f'        timing() {{\n'
+                       f'            related_pin     : "{type_port}{i}_clk";\n'
+                       f'            timing_type     : hold_rising ;\n'
+                       f'            rise_constraint({name}_constraint_template) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                index_2 ("{slew_indicies}");\n'
+                       f'                values ( \\\n'
+                       f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                       f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                       f'                )\n'
+                       f'            }}\n'
+                       f'            fall_constraint({name}_constraint_template) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                index_2 ("{slew_indicies}");\n'
+                       f'                values ( \\\n'
+                       f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                       f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                       f'                )\n'
+                       f'            }}\n'
+                       f'        }}\n'
+                       f'        internal_power(){{\n'
+                       f'            when : "(! ({type_port}{i}_we_in) )";\n'
+                       f'            rise_power({name}_energy_template_sigslew) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                       f'            }}\n'
+                       f'            fall_power({name}_energy_template_sigslew) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                       f'            }}\n'
+                       f'        }}\n'
+                       f'        internal_power(){{\n'
+                       f'            when : "({type_port}{i}_we_in)";\n'
+                       f'            rise_power({name}_energy_template_sigslew) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                       f'            }}\n'
+                       f'            fall_power({name}_energy_template_sigslew) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                       f'            }}\n'
+                       f'        }}\n'
+                       f'    }}\n')
+
+
+    for i in range(num_port):
+      LIB_file.write(f'    pin({type_port}{i}_ce_in){{\n'
+                    f'        direction : input;\n'
+                    f'        capacitance : {min_driver_in_cap:.3f};\n'
+                    f'        timing() {{\n'
+                    f'            related_pin : "{type_port}{i}_clk";\n'
+                    f'            timing_type : setup_rising ;\n'
+                    f'            rise_constraint({name}_constraint_template) {{\n'
+                    f'                index_1 ("{slew_indicies}");\n'
+                    f'                index_2 ("{slew_indicies}");\n'
+                    f'                values ( \\\n'
+                    f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                    f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'
+                    f'                )\n'
+                    f'            }}\n'
+                    f'            fall_constraint({name}_constraint_template) {{\n'
+                    f'                index_1 ("{slew_indicies}");\n'
+                    f'                index_2 ("{slew_indicies}");\n'
+                    f'                values ( \\\n'
+                    f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                    f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'
+                    f'                )\n'
+                    f'            }}\n'
+                    f'        }} \n'
+                    f'        timing() {{\n'
+                    f'            related_pin : "{type_port}{i}_clk";\n'
+                    f'            timing_type : hold_rising ;\n'
+                    f'            rise_constraint({name}_constraint_template) {{\n'
+                    f'                index_1 ("{slew_indicies}");\n'
+                    f'                index_2 ("{slew_indicies}");\n'
+                    f'                values ( \\\n'
+                    f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                    f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                    f'                )\n'
+                    f'            }}\n'
+                    f'            fall_constraint({name}_constraint_template) {{\n'
+                    f'                index_1 ("{slew_indicies}");\n'
+                    f'                index_2 ("{slew_indicies}");\n'
+                    f'                values ( \\\n'
+                    f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                    f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                    f'                )\n'
+                    f'            }}\n'
+                    f'        }}\n'
+                    f'        internal_power(){{\n'
+                    f'            rise_power({name}_energy_template_sigslew) {{\n'
+                    f'                index_1 ("{slew_indicies}");\n'
+                    f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                    f'            }}\n'
+                    f'            fall_power({name}_energy_template_sigslew) {{\n'
+                    f'                index_1 ("{slew_indicies}");\n'
+                    f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                    f'            }}\n'
+                    f'        }}\n'
+                    f'    }}\n')
+
+    for i in range(num_port) :
+      LIB_file.write(f'    bus({type_port}{i}_addr_in)   {{\n'
+                     f'        bus_type : {name}_ADDRESS;\n'
+                     f'        direction : input;\n'
+                     f'        capacitance : {min_driver_in_cap:.3f};\n'
+                     f'        timing() {{\n'
+                     f'            related_pin : "{type_port}{i}_clk";\n'
+                     f'            timing_type : setup_rising ;\n'
+                     f'            rise_constraint({name}_constraint_template) {{\n'
+                     f'                index_1 ("{slew_indicies}");\n'
+                     f'                index_2 ("{slew_indicies}");\n'
+                     f'                values ( \\\n'
+                     f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                     f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'
+                     f'                )\n'
+                     f'            }}\n'
+                     f'            fall_constraint({name}_constraint_template) {{\n'
+                     f'                index_1 ("{slew_indicies}");\n'
+                     f'                index_2 ("{slew_indicies}");\n'
+                     f'                values ( \\\n'
+                     f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                     f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'
+                     f'                )\n'
+                     f'            }}\n'
+                     f'        }} \n'
+                     f'        timing() {{\n'
+                     f'            related_pin : "{type_port}{i}_clk";\n'
+                     f'            timing_type : hold_rising ;\n'
+                     f'            rise_constraint({name}_constraint_template) {{\n'
+                     f'                index_1 ("{slew_indicies}");\n'
+                     f'                index_2 ("{slew_indicies}");\n'
+                     f'                values ( \\\n'
+                     f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                     f'                  "{thold:.3f}, {thold:.3f}" \\\n' 
+                     f'                )\n'
+                     f'            }}\n'
+                     f'            fall_constraint({name}_constraint_template) {{\n'
+                     f'                index_1 ("{slew_indicies}");\n'
+                     f'                index_2 ("{slew_indicies}");\n'
+                     f'                values ( \\\n'
+                     f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                     f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                     f'                )\n'
+                     f'            }}\n'
+                     f'        }}\n'
+                     f'        internal_power(){{\n'
+                     f'            rise_power({name}_energy_template_sigslew) {{\n'
+                     f'                index_1 ("{slew_indicies}");\n'
+                     f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                     f'            }}\n'
+                     f'            fall_power({name}_energy_template_sigslew) {{\n'
+                     f'                index_1 ("{slew_indicies}");\n'
+                     f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                     f'            }}\n'
+                     f'        }}\n'
+                     f'    }}\n')
+      
+def write_clk_ports(LIB_file, num_port, type_port, name, slew_indicies, min_driver_in_cap, clkpindynamic, min_period) -> None:
+      for i in range(num_port):
+        LIB_file.write( f'    pin({type_port}{i}_clk)   {{\n'
+                        f'        direction : input;\n'
+                        f'        capacitance : {min_driver_in_cap*5:.3f};\n' # Clk pin is usually higher cap for fanout control, assuming an x5 driver.
+                        f'        clock : true;\n'
+                      #f'        max_transition : 0.01;\n') # Max rise/fall time
+                      #f'        min_pulse_width_high : {min_period:.3f} ;\n'
+                      #f'        min_pulse_width_low  : {min_period:.3f} ;\n'
+                        f'        min_period           : {min_period:.3f} ;\n'
+                      #f'        minimum_period(){\n'
+                      #f'            constraint : %.3f ;\n' % min_period
+                      #f'            when : "1";\n'
+                      #f'            sdf_cond : "1";\n'
+                      #f'        }\n'
+                        f'        internal_power(){{\n'
+                        f'            rise_power({name}_energy_template_clkslew) {{\n'
+                        f'                index_1 ("{slew_indicies}");\n'
+                        f'                values ("{clkpindynamic:.3f}, {clkpindynamic:.3f}")\n'
+                        f'            }}\n'
+                        f'            fall_power({name}_energy_template_clkslew) {{\n'
+                        f'                index_1 ("{slew_indicies}");\n'
+                        f'                values ("{clkpindynamic:.3f}, {clkpindynamic:.3f}")\n'
+                        f'            }}\n'
+                        f'        }}\n'
+                        f'    }}\n'
+                        f'\n')
+
+def write_lib_wmask(LIB_file, num_port, type_port, name, slew_indicies, min_driver_in_cap, tsetup, thold, pindynamic) -> None:
+      for i in range(int(num_port)) :
+        LIB_file.write(f'    bus({type_port}{i}_wmask_in)   {{\n'
+                       f'        bus_type : {name}_DATA;\n'
+                       f'        memory_write() {{\n'
+                       f'            address : {type_port}{i}_addr_in;\n'
+                       f'            clocked_on : "{type_port}{i}_clk";\n'
+                       f'        }}\n'
+                       f'        direction : input;\n'
+                       f'        capacitance : {min_driver_in_cap:.3f};\n'
+                       f'        timing() {{\n'
+                       f'            related_pin     : {type_port}{i}_clk;\n'
+                       f'            timing_type     : setup_rising ;\n'
+                       f'            rise_constraint({name}_constraint_template) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                index_2 ("{slew_indicies}");\n'
+                       f'                values ( \\\n'
+                       f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                       f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'
+                       f'                )\n'
+                       f'            }}\n'
+                       f'            fall_constraint({name}_constraint_template) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                index_2 ("{slew_indicies}");\n'
+                       f'                values ( \\\n'
+                       f'                  "{tsetup:.3f}, {tsetup:.3f}", \\\n'
+                       f'                  "{tsetup:.3f}, {tsetup:.3f}" \\\n'
+                       f'                )\n'
+                       f'            }}\n'
+                       f'        }} \n'
+                       f'        timing() {{\n'
+                       f'            related_pin     : {type_port}{i}_clk;\n'
+                       f'            timing_type     : hold_rising ;\n'
+                       f'            rise_constraint({name}_constraint_template) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                index_2 ("{slew_indicies}");\n'
+                       f'                values ( \\\n'
+                       f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                       f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                       f'                )\n'
+                       f'            }}\n'
+                       f'            fall_constraint({name}_constraint_template) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                index_2 ("{slew_indicies}");\n'
+                       f'                values ( \\\n'
+                       f'                  "{thold:.3f}, {thold:.3f}", \\\n'
+                       f'                  "{thold:.3f}, {thold:.3f}" \\\n'
+                       f'                )\n'
+                       f'            }}\n'
+                       f'        }}\n'
+                       f'        internal_power(){{\n'
+                       f'            when : "(! ({type_port}{i}_we_in) )";\n'
+                       f'            rise_power({name}_energy_template_sigslew) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                       f'            }}\n'
+                       f'            fall_power({name}_energy_template_sigslew) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                       f'            }}\n'
+                       f'        }}\n'
+                       f'        internal_power(){{\n'
+                       f'            when : "({type_port}{i}_we_in)";\n'
+                       f'            rise_power({name}_energy_template_sigslew) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                       f'            }}\n'
+                       f'            fall_power({name}_energy_template_sigslew) {{\n'
+                       f'                index_1 ("{slew_indicies}");\n'
+                       f'                values ("{pindynamic:.3f}, {pindynamic:.3f}")\n'
+                       f'            }}\n'
+                       f'        }}\n'
+                       f'    }}\n')
 
