@@ -20,27 +20,41 @@ $ make tools
 The input to the BSG Black-box SRAM generator is a simple JSON file that
 contains some information about the technology node you are targeting as well
 as the size and names of SRAMs you would like to generate. Below is an example
-JSON file that can be found in `./example_cfgs/freepdk45.cfg`:
+JSON file that can be found in `./example_cfgs/sky130.cfg`:
 
 ```
 {
-  "tech_nm": 45,
-  "voltage": 1.1,
-  "metalPrefix": "metal",
-  "pinWidth_nm": 70,
-  "pinPitch_nm": 140,
-  "snapWidth_nm": 190,
-  "snapHeight_nm": 1400,
-  "flipPins": True,
+  "tech_nm": 130,
+  "voltage": 1.8,
+  "metalPrefix": "met",
+  "pinWidth_nm": 300,
+  "pinHeight_nm": 800,
+  "pinPitch_nm": 680,
+  "snapWidth_nm": 460,
+  "snapHeight_nm": 2720,
+  "manufacturing_grid_nm": 5,
+  "column_mux_factor": 1,
+  "flipPins": true,
   "srams": [
-    {"name": "sram_32x32_1rw", "width": 32, "depth":  32, "banks": 1},
-    {"name": "sram_8x512_1rw", "width":  8, "depth": 512, "banks": 1}
+    {
+      "name": "liteeth_1rw1r_32w384d_8_sram",
+      "width": 32,
+      "depth": 384,
+      "banks": 1,
+      "write_mode": "read_first",
+      "write_granularity": 8,
+      "r": [1, "right"],
+      "w": 0,
+      "rw": [1, "left"]
+    },
   ]
 }
 ```
 
 `tech_nm` - The name of the target technology node (in nm). Used in Cacti for
 modeling PPA of the SRAM.
+
+`hybrid` - (Optional : False) Overrides specific cacti values with values in yml file. Otherwise will use cacti as default.
 
 `voltage` - Nominal operating voltage for the tech node.
 
@@ -64,9 +78,38 @@ supply straps (also on metal 4) will be horizontal. If set to true then metal 1
 is assumed to be horizontal. This means that signal pins will be on metal 3 and
 the supply straps (on metal 4) will be vertical.
 
+`manufacturing_grid_nm` - The manufacturing grid for specific technology (in nm).
+
+`column_mux_factor` - How many bitlines are multiplexed together.
+
 `srams` - A list of SRAMs to generate. Each sram should have a `name`, `width`
 (or the number of bits per word), `depth` (or number of words), and `banks`.
+      `width` -  Width in bits.
+      `depth` -  Depth.
+      `banks` -  Number of banks.
+      `write_mode` - (Optional : write_first) For Read Write ports, optional to chose as read_first otherwise write_first.
+      `write_granularity` -  Specifies number of bits that can be written in a single write operation
+      `Ports` - ( Optional : Left) Index one specifies number of ports, index two specifies which side port will be placed on. Defaults to left.
+      `r` -  [1, "right"],
+      `w` -  [1, "right"],
+      `rw` -  [1, "left"]
+### Porting new tech
 
+Creating a yml file would be optimimal since cacti does not support below 28nm.
+YML file that can be found in `./tech/asap7.cfg`:
+```
+t_setup_ns: 0.050
+t_hold_ns: 0.050
+access_time_ns: 0.2183
+cycle_time_ns: 0.2566
+fo4_ps: 9.0632
+standby_leakage_per_bank_mW: 0.1289
+pin_dynamic_power_mW: 0.0013449
+cap_input_pf: 0.005
+contacted_poly_pitch_nm: 54
+finPitch_nm: 27
+
+```
 
 ### Running the Generator
 
