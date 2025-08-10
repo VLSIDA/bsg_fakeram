@@ -15,29 +15,50 @@ $ make tools
 
 ## Usage
 
-### Configuration File
+### Process Configuration
 
 The input to the BSG Black-box SRAM generator is a simple JSON file that
 contains some information about the technology node you are targeting as well
 as the size and names of SRAMs you would like to generate. Below is an example
-JSON file that can be found in `./example_cfgs/freepdk45.cfg`:
+JSON file that can be found in `./example_cfgs/asap7.cfg`:
 
 ```
 {
-  "tech_nm": 45,
-  "voltage": 1.1,
-  "metalPrefix": "metal",
-  "pinWidth_nm": 70,
-  "pinPitch_nm": 140,
-  "snapWidth_nm": 190,
-  "snapHeight_nm": 1400,
-  "flipPins": True,
+  "custom_tech_name": "asap7",
+  "hybrid": false,
+  "column_mux_factor": 4,
+  "tech_nm": 7,
+  "voltage": 0.7,
+  "metalPrefix": "M",
+  "metal_layer": "M4",
+  "pinWidth_nm": 24,
+  "pinPitch_nm": 48,
+  "manufacturing_grid_nm": 1,
+  "snap_width_nm": 190,
+  "snap_height_nm": 1400,
+  "flipPins": "false",
   "srams": [
-    {"name": "sram_32x32_1rw", "width": 32, "depth":  32, "banks": 1},
-    {"name": "sram_8x512_1rw", "width":  8, "depth": 512, "banks": 1}
+    {
+      "name": "testram_1w_64w256d_16_sram",
+      "width": 64,
+      "depth": 256,
+      "banks": 1,
+      "column_mux_factor_override": 2,
+      "write_mode": "write_first",
+      "write_granularity": 16,
+      "r": 0,
+      "w": [1, "left"],
+      "rw": 0
+    }
   ]
 }
 ```
+
+`custom_tech_name` - Name of the custom tech yml file
+
+`hybrid` - (Optional : False) Overrides specific cacti values with values in yml file. Otherwise will use cacti as default.
+
+`column_mux_factor` - (Optional : 1) It reduces the number of sense amplifiers needed, saving area, but may increase access time. When used the height is divided by its column mux factor and width multiplied by its column mux factor for all srams. Column mux factor defaults to 1. Can be overriden for a specific sram with parameter column_mux_factor_override in "sram". If CACTI is ran, this is ignored.
 
 `tech_nm` - The name of the target technology node (in nm). Used in Cacti for
 modeling PPA of the SRAM.
@@ -64,9 +85,51 @@ supply straps (also on metal 4) will be horizontal. If set to true then metal 1
 is assumed to be horizontal. This means that signal pins will be on metal 3 and
 the supply straps (on metal 4) will be vertical.
 
+`manufacturing_grid_nm` - The manufacturing grid for specific technology (in nm).
+
+### Memory Configuration
+
 `srams` - A list of SRAMs to generate. Each sram should have a `name`, `width`
 (or the number of bits per word), `depth` (or number of words), and `banks`.
 
+`column_mux_factor_override` - ( Optional : column_mux_factor value ) Overrides column_mux_factor for a specific sram.
+
+`write_mode` - ( Optional : write_first ) For Read Write ports, optional to chose as read_first otherwise write_first.
+
+`write_granularity` -  Specifies number of bits that can be written in a single write operation.
+
+`Ports` - ( Optional : Left ) Index one specifies number of ports, index two specifies which side port will be placed on. Defaults to left.
+`r` -  [1, "right"],
+`w` -  [1, "right"],
+`rw` -  [1, "left"]
+
+### Porting new tech
+
+Creating a yml file would be optimimal since cacti does not support below 28nm.
+YML file that can be found in `./tech/asap7.cfg`:
+```
+t_setup_ns: 0.050
+t_hold_ns: 0.050
+access_time_ns: 0.2183
+cycle_time_ns: 0.2566
+fo4_ps: 9.0632
+standby_leakage_per_bank_mW: 0.1289
+pin_dynamic_power_mW: 0.0013449
+cap_input_pf: 0.005
+contacted_poly_pitch_nm: 54
+finPitch_nm: 27
+H0_TRACKS: 10
+W0_POLYS: 2
+
+// Optional : Default to 1
+DH_READ: 2
+DW_READ: 0.5
+DH_WRITE: 2.5
+DW_WRITE: 0.5
+DH_RW: 1
+DW_RW: 0.5
+
+```
 
 ### Running the Generator
 
