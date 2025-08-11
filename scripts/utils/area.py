@@ -42,18 +42,22 @@ def get_macro_dimensions(mem) -> int:
   else:
     cmux_cap = 8
   effective_cmux = max(1, min(column_mux_factor, cmux_cap))
-  print(f'Effect cmux: {effective_cmux}')
+
+  aspect_ratio_factor = effective_cmux
 
   # rows reduced by mux 
   # columns increased by mux
-  all_bitcell_height = bitcell_height * (depth / effective_cmux)
-  all_bitcell_width  = bitcell_width  * (width_in_bits * effective_cmux)
+  all_bitcell_height = bitcell_height * depth
+  all_bitcell_width  = bitcell_width  * width_in_bits
 
   if num_banks == 2 or num_banks == 4:
     all_bitcell_height = all_bitcell_height / num_banks
     all_bitcell_width  = all_bitcell_width * num_banks
   elif num_banks != 1:
     raise Exception("Unsupported number of banks: {}".format(num_banks))
+  
+  all_bitcell_height = all_bitcell_height / aspect_ratio_factor
+  all_bitcell_width = all_bitcell_width * aspect_ratio_factor
 
   total_height = all_bitcell_height * 1.2
   total_width  = all_bitcell_width  * 1.2

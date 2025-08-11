@@ -102,7 +102,8 @@ class Memory:
     print('\n##################################################\n')
     print(f'Creating SRAM: {self.name} of width: {self.width_in_bits} and depth: {self.depth}')
     print('\n##################################################\n')
-    print('Hybrid checking : ', self.process.hybrid)
+    print("Applying custom tech overrides...\n") if self.process.hybrid is False else print("Applying hybrid overrides...")
+    print('Hybrid checking   : ', self.process.hybrid)
     print(f'column_mux_factor overriden? {self.column_mux_factor_overriden}')
     if self.column_mux_factor_overriden:
       print(f'Column mux overriden: {self.column_mux_factor}')
@@ -142,7 +143,9 @@ class Memory:
           f'DH_WRITE                         : {self.DH_WRITE}\n'
           f'DW_WRITE                         : {self.DW_WRITE}\n'
           f'DH_RW                            : {self.DH_RW}\n'
-          f'DW_RW                            : {self.DW_RW}\n')
+          f'DW_RW                            : {self.DW_RW}\n\n'
+          f'Total height                     : {self.height_um}\n'
+          f'Total width                      : {self.width_um}\n')
     print('\n ')
 
   def _get_custom_tech(self):
@@ -175,7 +178,7 @@ class Memory:
     contacted_poly_pitch, known tracks for bitcell, and contacted poly width"""
     if self.process.hybrid is False:
       self.height_um, self.width_um = get_macro_dimensions(self)
-    print("Custom tech parameters applied successfully.\n")
+    # print("Custom tech parameters applied successfully.\n")
 
   def _cacti_init(self, output_dir, cacti_dir, custom_tech_dir):
     if output_dir: # Output dir was set by command line option
@@ -237,7 +240,6 @@ class Memory:
 
     # Override with custom tech parameters if available
     if self.use_custom_tech:
-      print("Applying custom tech overrides...\n") if self.process.hybrid is False else print("Applying hybrid overrides...")
       self._get_custom_tech()
       
       self.access_time_ns              = self.temp_access_time_ns if self.temp_access_time_ns is not None else self.access_time_ns
@@ -246,12 +248,7 @@ class Memory:
       self.standby_leakage_per_bank_mW = self.temp_standby_leakage_per_bank_mW if self.temp_standby_leakage_per_bank_mW is not None else self.standby_leakage_per_bank_mW
       self.pin_dynamic_power_mW        = self.temp_pin_dynamic_power_mW if self.temp_pin_dynamic_power_mW is not None else self.dyn_write_energy_nj
       # self.dyn_write_energy_nj         = self.temp_dyn_write_energy_nj if self.temp_dyn_write_energy_nj is not None else self.dyn_write_energy_nj
-    
-      print(f'access_time_ns: {self.access_time_ns}')
-      print(f'cycle_time_ns: {self.cycle_time_ns}')
-      print(f'fo4_ps: {self.fo4_ps}')
-      print(f'standby_leakage_per_bank_mW: {self.standby_leakage_per_bank_mW}')
-      print(f'pin_dynamic_power_mW: {self.pin_dynamic_power_mW}')
+  
     else:
       print("Using CACTI parameters only")
 
@@ -267,8 +264,6 @@ class Memory:
     self.width_um = (math.ceil((self.width_um*1000.0)/self.process.snapWidth_nm)*self.process.snapWidth_nm)/1000.0
     self.height_um = (math.ceil((self.height_um*1000.0)/self.process.snapHeight_nm)*self.process.snapHeight_nm)/1000.0
     self.area_um2 = self.width_um * self.height_um 
-    print("Total Bitcell Height is", self.height_um) 
-    print("Total Bitcell Width is", self.width_um) 
 
   # __run_cacti: shell out to cacti to generate a csv file with more data
   # regarding this memory based on the input parameters from the json
