@@ -6,9 +6,11 @@ import argparse
 
 from utils.class_process import Process
 from utils.class_memory import Memory
+from utils.class_custom import Custom
 
 from utils.generate_lib import generate_lib
-from utils.generate_lef import generate_lef
+# from utils.generate_lef import generate_lef
+from utils.gen_lef.generate_lef import generate_lef
 from utils.generate_verilog import generate_verilog
 from utils.generate_verilog import generate_verilog_bb
 
@@ -43,10 +45,6 @@ def get_args() -> argparse.Namespace:
         "--cacti_dir", action="store", help="CACTI installation directory ", required=False, default=None
     )
 
-    parser.add_argument(
-      "--custom_tech_dir", action="store", help="Custom tech directory ", required=False, default=None
-    )
-
     return parser.parse_args()
 
 
@@ -60,9 +58,11 @@ def main ( args : argparse.Namespace):
   # Create a process object (shared by all srams)
   process = Process(json_data)
 
+  custom = Custom(process, json_data['custom_tech'])
+
   # Go through each sram and generate the lib, lef and v files
   for sram_data in json_data['srams']:
-    memory = Memory(process, sram_data, args.output_dir, args.cacti_dir, args.custom_tech_dir)
+    memory = Memory(process, sram_data, custom, args.output_dir, args.cacti_dir)
     generate_lib(memory)
     generate_lef(memory)
     generate_verilog(memory)

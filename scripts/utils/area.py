@@ -3,7 +3,7 @@ import sys
 import math 
 
 
-def get_macro_dimensions(mem) -> int:
+def get_macro_dimensions(mem, process) -> int:
   """DYNAMIC SIZING (preserve variable names; neutralize global port scaling)
   Original multiplied whole macro by (r+w+rw) in x and y.
   Keep xfactor/yfactor variables but set them to neutral (or asymmetric) scales."""
@@ -16,20 +16,20 @@ def get_macro_dimensions(mem) -> int:
   depth                   = int(mem.sram_data['depth'])
   num_banks               = int(mem.sram_data['banks'])
 
-  H0_TRACKS               = mem.H0_TRACKS or 1
-  W0_POLYS                = mem.W0_POLYS or 1
+  h0_tracks               = mem.h0_tracks or 1
+  w0_polys                = mem.w0_polys or 1
 
-  # Dummy overhead
-  DH_READ                 = mem.DH_READ or 1
-  DW_READ                 = mem.DW_READ or 1
-  DH_WRITE                = mem.DH_WRITE or 1
-  DW_WRITE                = mem.DW_WRITE or 1
-  DH_RW                   = mem.DH_RW or 1
-  DW_RW                   = mem.DW_RW or 1
+  # dummy overhead
+  dh_read                 = mem.dh_read or 1
+  dw_read                 = mem.dw_read or 1
+  dh_write                = mem.dh_write or 1
+  dw_write                = mem.dw_write or 1
+  dh_rw                   = mem.dh_rw or 1
+  dw_rw                   = mem.dw_rw or 1
 
   # Compute bitcell height/width in microns from tracks/pitches
-  h_tracks = H0_TRACKS + mem.r*DH_READ + mem.w*DH_WRITE + mem.rw*DH_RW
-  w_polys  = W0_POLYS  + mem.r*DW_READ + mem.w*DW_WRITE + mem.rw*DW_RW
+  h_tracks = h0_tracks + mem.r*dh_read + mem.w*dh_write + mem.rw*dh_rw
+  w_polys  = w0_polys  + mem.r*dw_read + mem.w*dw_write + mem.rw*dw_rw
 
   bitcell_height = h_tracks * fin_pitch_um
   bitcell_width  = w_polys  * contacted_poly_pitch_um
@@ -41,9 +41,7 @@ def get_macro_dimensions(mem) -> int:
     cmux_cap = 4
   else:
     cmux_cap = 8
-  effective_cmux = max(1, min(column_mux_factor, cmux_cap))
-
-  aspect_ratio_factor = effective_cmux
+  aspect_ratio_factor = max(1, min(column_mux_factor, cmux_cap))
 
   # rows reduced by mux 
   # columns increased by mux
@@ -56,10 +54,10 @@ def get_macro_dimensions(mem) -> int:
   elif num_banks != 1:
     raise Exception("Unsupported number of banks: {}".format(num_banks))
   
+  # Same logic from FakeRAM2.0
   all_bitcell_height = all_bitcell_height / aspect_ratio_factor
   all_bitcell_width = all_bitcell_width * aspect_ratio_factor
 
   total_height = all_bitcell_height * 1.2
   total_width  = all_bitcell_width  * 1.2
-
   return total_height, total_width

@@ -6,10 +6,8 @@ CONFIG := $(TOP_DIR)/example_cfgs/freepdk45.cfg
 
 OUT_DIR := $(TOP_DIR)/results
 
-TECH_DIR := $(TOP_DIR)/tech
-
 run:
-	./scripts/run.py $(CONFIG) --output_dir $(OUT_DIR) --custom_tech_dir $(TECH_DIR)
+	PYTHONDONTWRITEBYTECODE=1 ./scripts/run.py $(CONFIG) --output_dir $(OUT_DIR)
 
 view.%:
 	klayout ./$(OUT_DIR)/$*/$*.lef &
@@ -33,7 +31,3 @@ $(CACTI_BUILD_DIR):
 
 clean_tools:
 	rm -rf $(CACTI_BUILD_DIR)
-
-
-debug:
-	python3 -m pdb ./scripts/run.py $(CONFIG) --output_dir $(OUT_DIR) --custom_tech_dir $(TECH_DIR)

@@ -29,23 +29,6 @@ def generate_lib( mem ):
     min_period        = float(mem.cycle_time_ns)
     fo4               = float(mem.fo4_ps)/1e3
 
-    print(f'name: {name}')
-    print(f'depth: {depth}')
-    print(f'bits: {bits}')
-    print(f'area: {area}')
-    print(f'x: {x}')
-    print(f'y: {y}')
-    print(f'leakage: {leakage}')
-    print(f'tsetup: {tsetup}')
-    print(f'thold: {thold}')
-    print(f'tcq: {tcq}')
-    print(f'clkpindynamic: {clkpindynamic}')
-    print(f'pindynamic: {pindynamic}')
-    print(f'min_driver_in_cap: {min_driver_in_cap}')
-    print(f'voltage: {voltage}')
-    print(f'min_period: {min_period}')
-    print(f'fo4: {fo4}\n')
-
     # Dynamic Ports
     num_rport = mem.r
     num_wport = mem.w  
