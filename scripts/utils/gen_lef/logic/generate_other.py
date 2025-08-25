@@ -32,7 +32,7 @@ def gen_obs(lef_p) -> None:
     mem            = lef_p.mem
     name           = lef_p.name
     metal_prefix   = lef_p.metal_prefix
-    metalLayerPins = lef_p.metalLayerPins
+    metalLayerPins = str(max(lef_p.metLayerHorizontalPin,lef_p.metLayerVerticalPin,lef_p.metLayerPowerGrid))
     h              = lef_p.h
     w              = lef_p.w
 

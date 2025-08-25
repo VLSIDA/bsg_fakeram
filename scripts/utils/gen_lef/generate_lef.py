@@ -9,15 +9,16 @@ from utils.gen_lef.logic import *
 
 def generate_lef( mem ):
     # Memory parameters
-    LEF_params = LEF_Parameters(mem)
-    pin_params = PinStartCoords(LEF_params)
+    lef_p = LEF_Parameters(mem)
 
-    gen_header(LEF_params)
+    pin_params = PinStartCoords(lef_p)
+
+    gen_header(lef_p)
 
     gen_r_port(pin_params)
     gen_w_port(pin_params)
     gen_rw_port(pin_params)
 
-    gen_strapes(mem, LEF_params)
+    gen_strapes(lef_p)
 
-    gen_obs(LEF_params)
+    gen_obs(lef_p)

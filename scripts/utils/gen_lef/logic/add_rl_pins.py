@@ -19,25 +19,32 @@ Right:
 
 def lef_add_rl_pin(LEF_file, mem, pin_name, is_input, y_center_um, pitch_um, side) -> float:
     """ add right/left pin """
+    y_offset_um           = mem.process.y_pinOffset_um
+    heightSnaptoTrack     = mem.process.heightSnaptoTrack
+    manufacturing_grid_um = mem.process.manufacturing_grid_um
+    metalPrefix           = mem.process.metalPrefix
+    metLayer              = is_dataPin(mem, pin_name)
+    pinWidth_um           = mem.process.pinWidth_um
+    pinHeight_um          = mem.process.pinHeight_um
+    
     LEF_file = open(LEF_file, 'a')
     track_pitch_y = pitch_um
-    track_offset_y = float(mem.process.y_offset_um)
+    track_offset_y = float(y_offset_um)
     
-    if mem.process.heightSnaptoTrack == True:
+    if heightSnaptoTrack == True:
         n = round((y_center_um - track_offset_y) / track_pitch_y)
         y_center_um = track_offset_y + n * track_pitch_y
         
-    elif mem.process.heightSnaptoTrack == False:
+    elif heightSnaptoTrack == False:
         pin_index = int(round((y_center_um - track_offset_y) / track_pitch_y))
         y_center_um = track_offset_y + pin_index * track_pitch_y
-        
     
-    grid = float(mem.process.manufacturing_grid_um)
-    flip = mem.process.flipPins
-    layer = (mem.process.metalPrefix + '3') if flip else mem.process.metalLayerPins
+    grid = float(manufacturing_grid_um)
+
+    layer = (metalPrefix + str(metLayer))
 
     y_c_gr = to_grids(y_center_um, grid)
-    pw_um = float(mem.process.pinWidth_um)
+    pw_um = float(pinWidth_um)
     hpw_gr = max(1, int((Decimal(str(pw_um)) / (2 * Decimal(str(grid)))).quantize(Decimal('1'), rounding=ROUND_UP)))
     y_bot = from_grids(y_c_gr - hpw_gr, grid)
     y_top = from_grids(y_c_gr + hpw_gr, grid)
@@ -46,7 +53,7 @@ def lef_add_rl_pin(LEF_file, mem, pin_name, is_input, y_center_um, pitch_um, sid
         print(f"ERROR: Pin {pin_name} exceeds macro height!")
         sys.exit(1)
 
-    ph = snap_to_grid(float(mem.process.pinHeight_um), grid)
+    ph = snap_to_grid(float(pinHeight_um), grid)
 
     LEF_file.write(f'  PIN {pin_name}\n')
     LEF_file.write(f'    DIRECTION {"INPUT" if is_input else "OUTPUT"} ;\n')

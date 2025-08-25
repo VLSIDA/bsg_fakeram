@@ -5,14 +5,15 @@ import json
 import argparse
 
 from utils.class_process import Process
-from utils.class_memory import Memory
-from utils.class_custom import Custom
+from utils.init_mem.modules import *
 
 from utils.generate_lib import generate_lib
-# from utils.generate_lef import generate_lef
 from utils.gen_lef.generate_lef import generate_lef
 from utils.generate_verilog import generate_verilog
 from utils.generate_verilog import generate_verilog_bb
+
+from utils.init_mem.init_mem import memory_main
+from utils.init_mem.mem_globals import print_init_sram
 
 ################################################################################
 # RUN GENERATOR
@@ -58,11 +59,18 @@ def main ( args : argparse.Namespace):
   # Create a process object (shared by all srams)
   process = Process(json_data)
 
-  custom = Custom(process, json_data['custom_tech'])
+  custom = json_data['custom_tech']
 
   # Go through each sram and generate the lib, lef and v files
   for sram_data in json_data['srams']:
-    memory = Memory(process, sram_data, custom, args.output_dir, args.cacti_dir)
+
+    init_mem = Memory(process, sram_data)
+    
+    # Initialized
+    memory = memory_main(init_mem, custom, args.output_dir, args.cacti_dir)
+    
+    print_init_sram(memory)
+
     generate_lib(memory)
     generate_lef(memory)
     generate_verilog(memory)

@@ -31,3 +31,6 @@ $(CACTI_BUILD_DIR):
 
 clean_tools:
 	rm -rf $(CACTI_BUILD_DIR)
+
+test:
+	bash ./scripts/tests/run_test.sh

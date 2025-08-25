@@ -20,37 +20,48 @@ Bottom:
 
 def lef_add_tb_pin(LEF_file, mem, pin_name, is_input, x_center_um, y_pitch_um, x_pitch_um, side) -> float:
     """ add top/bot pin """
+    x_offset_um           = mem.process.x_pinOffset_um
+    y_offset_um           = mem.process.y_pinOffset_um
+    heightSnaptoTrack     = mem.process.heightSnaptoTrack
+    manufacturing_grid_um = mem.process.manufacturing_grid_um
+    metLayerHorizontalPin = mem.process.metLayerHorizontalPin
+    metalPrefix           = mem.process.metalPrefix
+    pinWidth_um           = mem.process.pinWidth_um
+    pinHeight_um          = mem.process.pinHeight_um
+    width_um              = mem.width_um
+    height_um             = mem.height_um
+
     LEF_file = open(LEF_file, 'a')
     track_pitch_x = x_pitch_um
-    track_offset_x = float(mem.process.x_offset_um)
+    track_offset_x = float(x_offset_um)
     track_pitch_y = y_pitch_um
-    track_offset_y = float(mem.process.y_offset_um)
+    track_offset_y = float(y_offset_um)
     
-    if mem.process.heightSnaptoTrack == True:
+    if heightSnaptoTrack == True:
         # Align X to tracks
         n = round((x_center_um - track_offset_x) / track_pitch_x)
         x_center_um = track_offset_x + n * track_pitch_x
         
-    elif mem.process.heightSnaptoTrack == False:
+    elif heightSnaptoTrack == False:
         pin_index_x = int(round((x_center_um - track_offset_x) / track_pitch_x))
         x_center_um = track_offset_x + pin_index_x * track_pitch_x
         
     
-    grid = float(mem.process.manufacturing_grid_um)
-    flip = mem.process.flipPins
-    layer = (mem.process.metalPrefix + '3') if flip else mem.process.metalLayerPins
+    grid = float(manufacturing_grid_um)
+
+    layer = (metalPrefix + str(metLayerHorizontalPin))
 
     x_c_gr = to_grids(x_center_um, grid)
-    pw_um = float(mem.process.pinWidth_um)
+    pw_um = float(pinWidth_um)
     hpw_gr = max(1, int((Decimal(str(pw_um)) / (2 * Decimal(str(grid)))).quantize(Decimal('1'), rounding=ROUND_UP)))
     x_left = from_grids(x_c_gr - hpw_gr, grid)
     x_right = from_grids(x_c_gr + hpw_gr, grid)
 
-    if x_right > mem.width_um:
+    if x_right > width_um:
         print(f"ERROR: Pin {pin_name} exceeds macro width!")
         sys.exit(1)
 
-    ph = snap_to_grid(float(mem.process.pinHeight_um), grid)
+    ph = snap_to_grid(float(pinHeight_um), grid)
 
     LEF_file.write(f'  PIN {pin_name}\n')
     LEF_file.write(f'    DIRECTION {"INPUT" if is_input else "OUTPUT"} ;\n')
@@ -60,7 +71,7 @@ def lef_add_tb_pin(LEF_file, mem, pin_name, is_input, x_center_um, y_pitch_um, x
     LEF_file.write(f'      LAYER {layer} ;\n')
 
     if side == 'top':
-        start_edge = mem.height_um
+        start_edge = height_um
         y_bottom, y_top = align_track_tb_pin(mem, start_edge, ph, track_offset_y, track_pitch_y, pin_name, 'top')
         LEF_file.write('      RECT %.3f %.3f %.3f %.3f ;\n' % (x_left, y_bottom, x_right, y_top))
     elif side == 'bottom':

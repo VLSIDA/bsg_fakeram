@@ -1,7 +1,10 @@
 from utils.gen_lef.lef_globals import snap_to_grid
 
 def align_track_tb_pin(mem, y_edge, pinHeight, track_offset_y, track_pitch_y, pin_name, side) -> tuple:
-    if mem.process.heightSnaptoTrack == True:
+    heightSnaptoTrack = mem.process.heightSnaptoTrack
+    widthSnaptoTrack  = mem.process.widthSnaptoTrack
+    
+    if heightSnaptoTrack == True:
         if side == 'top':
             y_top = y_edge
             y_bottom = y_top - pinHeight
@@ -14,13 +17,7 @@ def align_track_tb_pin(mem, y_edge, pinHeight, track_offset_y, track_pitch_y, pi
         n_y = round((aligned_y_center - track_offset_y) / track_pitch_y)
         expected_center = track_offset_y + n_y * track_pitch_y
 
-        if abs(aligned_y_center - expected_center) > 0.001:
-            print(f"WARNING: {side.capitalize()} pin {pin_name} center adjusted for track alignment")
-            aligned_y_center = expected_center
-            y_top = aligned_y_center + (pinHeight / 2)
-            y_bottom = aligned_y_center - (pinHeight / 2)
-
-    elif mem.process.heightSnaptoTrack == False:
+    elif heightSnaptoTrack == False:
         # TRUE FORCE OFFSET: No rounding, use exact edge-relative positioning
         if side == 'top':
             # For top pins, maintain exact distance from top edge
@@ -35,11 +32,17 @@ def align_track_tb_pin(mem, y_edge, pinHeight, track_offset_y, track_pitch_y, pi
     return y_bottom, y_top
 
 def snap_height_to_track(mem, h, scaled_y_pitch):
+    heightSnaptoTrack     = mem.process.heightSnaptoTrack
+    widthSnaptoTrack      = mem.process.widthSnaptoTrack
+    y_offset              = mem.process.y_pinOffset_um
+    manufacturing_grid_um = mem.process.manufacturing_grid_um
+    pin_height            = mem.process.pinHeight_um
+
     """adjust macro height to fit"""
-    if mem.process.heightSnaptoTrack == True:
-        pinHeight = snap_to_grid(float(mem.process.pinHeight_um), mem.process.manufacturing_grid_um)
+    if heightSnaptoTrack == True:
+        pinHeight = snap_to_grid(float(pin_height), manufacturing_grid_um)
         track_pitch_y = scaled_y_pitch
-        track_offset_y = float(mem.process.y_offset_um)
+        track_offset_y = float(y_offset)
         
         required_bot_center = pinHeight / 2
         
@@ -50,7 +53,7 @@ def snap_height_to_track(mem, h, scaled_y_pitch):
             shift_needed = (pinHeight / 2) - bot_center_on_track
             track_offset_y += shift_needed
             bot_center_on_track = pinHeight / 2
-            mem.process.y_offset_um = track_offset_y
+            y_offset = track_offset_y
         
         max_possible_tracks = int((h - pinHeight) / track_pitch_y) + 1
         
@@ -61,12 +64,12 @@ def snap_height_to_track(mem, h, scaled_y_pitch):
             top_center_on_track += track_pitch_y
             required_macro_height = top_center_on_track + (pinHeight / 2)
         
-        final_height = snap_to_grid(required_macro_height, mem.process.manufacturing_grid_um)
+        final_height = snap_to_grid(required_macro_height, manufacturing_grid_um)
     
-    elif mem.process.heightSnaptoTrack == False:
+    elif heightSnaptoTrack == False:
         # TRUE FORCE OFFSET: Keep original height, extend if needed
-        pinHeight = snap_to_grid(float(mem.process.pinHeight_um), mem.process.manufacturing_grid_um)
-        track_offset_y = float(mem.process.y_offset_um)
+        pinHeight = snap_to_grid(float(pin_height), manufacturing_grid_um)
+        track_offset_y = float(y_offset)
         
         # Calculate potential pin positions with exact offset
         bottom_pin_center = pinHeight / 2  # First pin center
@@ -89,7 +92,7 @@ def snap_height_to_track(mem, h, scaled_y_pitch):
             final_height = h
             mem._bottom_edge_offset = 0
             
-        final_height = snap_to_grid(final_height, mem.process.manufacturing_grid_um)
+        final_height = snap_to_grid(final_height, manufacturing_grid_um)
         
     
     return final_height
