@@ -12,6 +12,7 @@ class LEF_Parameters:
         self.depth                 = mem.depth
         self.bits                  = mem.width_in_bits
         self.addr_width            = mem.addr_width
+        self.metal_prefix          = mem.process.metalPrefix
         
         # Ports
         self.num_rports            = mem.r
@@ -21,31 +22,31 @@ class LEF_Parameters:
         self.has_wmask             = mem.has_write_mask
         self.banks                 = mem.num_banks
 
-        # Pin Dimensions
-        self.min_pin_width         = mem.process.pinWidth_um
-        self.pin_height            = mem.process.pinHeight_um
-        
-        # Metal Layer
-        self.metal_prefix          = mem.process.metalPrefix
+        # Pin Params
         self.metLayerHorizontalPin = mem.process.metLayerHorizontalPin
         self.metLayerVerticalPin   = mem.process.metLayerVerticalPin
-        self.metLayerPowerGrid     = mem.process.metLayerPowerGrid
-        self.directionPowerGrid    = mem.process.directionPowerGrid
-
-        # Pitch
         self.x_offset              = mem.process.x_pinOffset_um
         self.y_offset              = mem.process.y_pinOffset_um
-        self.pitch_factor          = mem.pitchFactor
+        self.pin_pitch_factor      = mem.pinPitchFactor
         self.unscaled_x_pin_pitch  = mem.process.x_pinPitch_um
         self.unscaled_y_pin_pitch  = mem.process.pinPitch_um
+        self.pin_width             = mem.process.pinWidth_um
+        self.pin_height            = mem.process.pinHeight_um
+
+        # Power Grid
+        self.metLayerPowerGrid     = mem.process.metLayerPowerGrid
+        self.directionPowerGrid    = mem.process.directionPowerGrid
+        self.powerGridWidth_um     = mem.process.powerGridWidth_um
+        self.powerGridPitch_um     = mem.process.powerGridPitch_um
+        self.powerGridOffset_um    = mem.process.powerGridOffset_um
 
         # Additional
-        self.heightSnaptoTrack     = mem.process.heightSnaptoTrack
-        self.widthSnaptoTrack      = mem.process.widthSnaptoTrack
-        self.verticalPinsOnly      = mem.process.verticalPinsOnly
+        self.heightSnapPinPitch     = mem.process.heightSnapPinPitch
+        self.widthSnapPinPitch      = mem.process.widthSnapPinPitch
+        self.verticalPinsOnly       = mem.process.verticalPinsOnly
 
-        self.x_pin_pitch = get_quantized_value(self.unscaled_x_pin_pitch, self.pitch_factor, rounding=0.001)
-        self.y_pin_pitch = get_quantized_value(self.unscaled_y_pin_pitch, self.pitch_factor, rounding=0.001)
+        self.x_pin_pitch = get_quantized_value(self.unscaled_x_pin_pitch, self.pin_pitch_factor, rounding=0.001)
+        self.y_pin_pitch = get_quantized_value(self.unscaled_y_pin_pitch, self.pin_pitch_factor, rounding=0.001)
 
         # TODO: Add padding to json
         # Particularly can be useful if overlap happens between pins

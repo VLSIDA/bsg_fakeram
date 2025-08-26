@@ -30,7 +30,7 @@ class Memory():
 
 		# Optional Memory Parameters
 		self.num_banks                   = int(sram_data.get('banks', 1))
-		self.pitchFactor                 = int(sram_data.get('pitchFactor', 1))
+		self.pinPitchFactor              = int(sram_data.get('pinPitchFactor', 1))
 		self.cache_type                  = str(sram_data.get('type','cache'))
 		self.write_mode                  = str(sram_data.get('write_mode','write_first'))
 

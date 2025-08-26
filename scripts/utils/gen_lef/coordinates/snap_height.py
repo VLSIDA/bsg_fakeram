@@ -1,10 +1,10 @@
 from utils.gen_lef.lef_globals import snap_to_grid
 
 def align_track_tb_pin(mem, y_edge, pinHeight, track_offset_y, track_pitch_y, pin_name, side) -> tuple:
-    heightSnaptoTrack = mem.process.heightSnaptoTrack
-    widthSnaptoTrack  = mem.process.widthSnaptoTrack
+    heightSnapPinPitch = mem.process.heightSnapPinPitch
+    widthSnapPinPitch  = mem.process.widthSnapPinPitch
     
-    if heightSnaptoTrack == True:
+    if heightSnapPinPitch == True:
         if side == 'top':
             y_top = y_edge
             y_bottom = y_top - pinHeight
@@ -17,7 +17,7 @@ def align_track_tb_pin(mem, y_edge, pinHeight, track_offset_y, track_pitch_y, pi
         n_y = round((aligned_y_center - track_offset_y) / track_pitch_y)
         expected_center = track_offset_y + n_y * track_pitch_y
 
-    elif heightSnaptoTrack == False:
+    elif heightSnapPinPitch == False:
         # TRUE FORCE OFFSET: No rounding, use exact edge-relative positioning
         if side == 'top':
             # For top pins, maintain exact distance from top edge
@@ -32,14 +32,14 @@ def align_track_tb_pin(mem, y_edge, pinHeight, track_offset_y, track_pitch_y, pi
     return y_bottom, y_top
 
 def snap_height_to_track(mem, h, scaled_y_pitch):
-    heightSnaptoTrack     = mem.process.heightSnaptoTrack
-    widthSnaptoTrack      = mem.process.widthSnaptoTrack
+    heightSnapPinPitch    = mem.process.heightSnapPinPitch
+    widthSnapPinPitch     = mem.process.widthSnapPinPitch
     y_offset              = mem.process.y_pinOffset_um
     manufacturing_grid_um = mem.process.manufacturing_grid_um
     pin_height            = mem.process.pinHeight_um
 
     """adjust macro height to fit"""
-    if heightSnaptoTrack == True:
+    if heightSnapPinPitch == True:
         pinHeight = snap_to_grid(float(pin_height), manufacturing_grid_um)
         track_pitch_y = scaled_y_pitch
         track_offset_y = float(y_offset)
@@ -66,7 +66,7 @@ def snap_height_to_track(mem, h, scaled_y_pitch):
         
         final_height = snap_to_grid(required_macro_height, manufacturing_grid_um)
     
-    elif heightSnaptoTrack == False:
+    elif heightSnapPinPitch == False:
         # TRUE FORCE OFFSET: Keep original height, extend if needed
         pinHeight = snap_to_grid(float(pin_height), manufacturing_grid_um)
         track_offset_y = float(y_offset)

@@ -20,7 +20,7 @@ Right:
 def lef_add_rl_pin(LEF_file, mem, pin_name, is_input, y_center_um, pitch_um, side) -> float:
     """ add right/left pin """
     y_offset_um           = mem.process.y_pinOffset_um
-    heightSnaptoTrack     = mem.process.heightSnaptoTrack
+    heightSnapPinPitch    = mem.process.heightSnapPinPitch
     manufacturing_grid_um = mem.process.manufacturing_grid_um
     metalPrefix           = mem.process.metalPrefix
     metLayer              = is_dataPin(mem, pin_name)
@@ -31,11 +31,11 @@ def lef_add_rl_pin(LEF_file, mem, pin_name, is_input, y_center_um, pitch_um, sid
     track_pitch_y = pitch_um
     track_offset_y = float(y_offset_um)
     
-    if heightSnaptoTrack == True:
+    if heightSnapPinPitch == True:
         n = round((y_center_um - track_offset_y) / track_pitch_y)
         y_center_um = track_offset_y + n * track_pitch_y
         
-    elif heightSnaptoTrack == False:
+    elif heightSnapPinPitch == False:
         pin_index = int(round((y_center_um - track_offset_y) / track_pitch_y))
         y_center_um = track_offset_y + pin_index * track_pitch_y
     

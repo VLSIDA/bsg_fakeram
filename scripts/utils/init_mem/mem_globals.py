@@ -29,40 +29,38 @@ def print_init_sram(gbl):
         )
     
     print(
-         f'\nMETAL LAYER PINS\n'
+         f'\nPIN PARAMETERS\n'
          f'metLayerHorizontalPin       : {gbl.process.metLayerHorizontalPin}\n'
          f'metLayerVerticalPin         : {gbl.process.metLayerVerticalPin}\n'
-
-         f'\nMETAL LAYER POWER GRID\n'
-         f'metLayerPowerGrid           : {gbl.process.metLayerPowerGrid}\n'
-         f'directionPowerGrid          : {gbl.process.directionPowerGrid}\n'
-
-         f'\nPITCH PARAMETERS\n'
-         f'pinSnapMode                 : {gbl.process.pinSnapMode}\n'
-         f'{'x_trackPitch_nm' if gbl.process.pinSnapMode == 'track' else 'x_pinPitch_nm'}             : {gbl.process.x_trackPitch_nm if gbl.process.pinSnapMode == 'track' else gbl.process.x_pinPitch_nm}\n'
-         f'{'y_trackPitch_nm' if gbl.process.pinSnapMode == 'track' else 'y_pinPitch_nm'}             : {gbl.process.y_trackPitch_nm if gbl.process.pinSnapMode == 'track' else gbl.process.y_pinPitch_nm}\n'
+         f'y_pinPitch_um               : {gbl.process.y_pinPitch_um}\n'
+         f'x_pinPitch_um               : {gbl.process.x_pinPitch_um}\n'
+         f'pinPitchFactor              : {gbl.pinPitchFactor}\n'
          f'y_pinOffset_um              : {gbl.process.y_pinOffset_um}\n'
          f'x_pinOffset_um              : {gbl.process.x_pinOffset_um}\n'
-         f'pitchFactor                 : {gbl.pitchFactor}\n'
-         
-         f'\nPIN DIMENSIONS\n'
-         f'pinWidth_nm                 : {gbl.process.pinWidth_nm}\n'
-         f'pinHeight_nm                : {gbl.process.pinHeight_nm}\n'        
+         f'pinWidth_um                 : {gbl.process.pinWidth_um}\n'
+         f'pinHeight_um                : {gbl.process.pinHeight_um}\n'  
 
+         f'\nPOWER GRID\n'
+         f'metLayerPowerGrid           : {gbl.process.metLayerPowerGrid}\n'
+         f'directionPowerGrid          : {gbl.process.directionPowerGrid}\n'
+         f'powerGridWidth_um           : {gbl.process.powerGridWidth_um}\n'
+         f'powerGridPitch_um           : {gbl.process.powerGridPitch_um}\n'
+         f'powerGridOffset_um          : {gbl.process.powerGridOffset_um}\n'
+         
          f'\nTIMING\n'        
          f't_setup_ns                  : {gbl.t_setup_ns}\n'
          f't_hold_ns                   : {gbl.t_hold_ns}\n'
          f'cap_input_pf                : {gbl.cap_input_pf}\n'
          
          f'\nADDITIONAL PARAMS\n'
-         f'heightSnaptoTrack           : {gbl.process.heightSnaptoTrack}\n'
-         f'widthSnaptoTrack            : {gbl.process.widthSnaptoTrack}\n'
+         f'heightSnapPinPitch          : {gbl.process.heightSnapPinPitch}\n'
+         f'widthSnapPinPitch           : {gbl.process.widthSnapPinPitch}\n'
          f'equidistantPins             : {gbl.process.equidistantPins}\n'
          f'verticalPinsOnly            : {gbl.process.verticalPinsOnly}\n'
          f'column_mux_factor overriden : {gbl.column_mux_factor_overriden}\n'
          f'column_mux_factor           : {gbl.process.column_mux_factor}\n'
-         f'snapWidth_nm                : {gbl.process.snapWidth_nm}\n'
-         f'snapHeight_nm               : {gbl.process.snapHeight_nm}\n'
+         f'snapWidth_um                : {gbl.process.snapWidth_um}\n'
+         f'snapHeight_um               : {gbl.process.snapHeight_um}\n'
          f'\nUSE CUSTOM TECH: {gbl.process.use_custom_tech}\n'
     )
         

@@ -22,7 +22,7 @@ def lef_add_tb_pin(LEF_file, mem, pin_name, is_input, x_center_um, y_pitch_um, x
     """ add top/bot pin """
     x_offset_um           = mem.process.x_pinOffset_um
     y_offset_um           = mem.process.y_pinOffset_um
-    heightSnaptoTrack     = mem.process.heightSnaptoTrack
+    heightSnapPinPitch    = mem.process.heightSnapPinPitch
     manufacturing_grid_um = mem.process.manufacturing_grid_um
     metLayerHorizontalPin = mem.process.metLayerHorizontalPin
     metalPrefix           = mem.process.metalPrefix
@@ -37,12 +37,12 @@ def lef_add_tb_pin(LEF_file, mem, pin_name, is_input, x_center_um, y_pitch_um, x
     track_pitch_y = y_pitch_um
     track_offset_y = float(y_offset_um)
     
-    if heightSnaptoTrack == True:
+    if heightSnapPinPitch == True:
         # Align X to tracks
         n = round((x_center_um - track_offset_x) / track_pitch_x)
         x_center_um = track_offset_x + n * track_pitch_x
         
-    elif heightSnaptoTrack == False:
+    elif heightSnapPinPitch == False:
         pin_index_x = int(round((x_center_um - track_offset_x) / track_pitch_x))
         x_center_um = track_offset_x + pin_index_x * track_pitch_x
         
