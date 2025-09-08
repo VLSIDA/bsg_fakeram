@@ -89,10 +89,8 @@ class PinGrid(LEF_Parameters):
                     , side1       :  str
                     , side2       :  str ) -> None:  
         """ Generate available pin slots along a single dimension for opposing sides of a cell.
-
         Creates pin slot positions along either the width (for top/bottom pins) or height 
-        (for left/right pins) of a semiconductor cell layout. For each valid position, 
-        generates PinSlot objects across all metal layers for both opposing sides.
+        (for left/right pins) of the FakeRAM.
 
         Note:
             - Creates slots for all metal layers (1 to self.total_layers)
