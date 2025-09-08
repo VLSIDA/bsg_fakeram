@@ -1,6 +1,17 @@
 
 from dataclasses import dataclass
-from utils.init_mem.mem_globals import *
+from utils.mem_init.mem_globals import *
+
+################################################################################
+# CACTI DATA CLASS
+#
+# Parses a CACTI result row into typed fields for later sizing/power logic.
+# Includes a lightweight HybridData dataclass for aggregating timing/power.
+#
+# Dataclass:
+#   HybridData                         - timing & power summary container
+#                                        for custom values
+################################################################################
 
 tech_nm_idx                  = 0
 capacity_bytes_idx           = 1

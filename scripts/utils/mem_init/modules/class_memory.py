@@ -12,8 +12,6 @@ from dataclasses import dataclass
 
 class Memory():
 	def __init__( self, process, sram_data ):
-
-		# Main Memory Parameters
 		self.process                     = process
 		self.sram_data                   = sram_data
 		self.name                        = str(sram_data.get('name' , None))
@@ -22,38 +20,28 @@ class Memory():
 		self.addr_width                  = math.ceil(math.log2(self.depth))
 		self.width_in_bytes              = math.ceil((self.width_in_bits / 8.0))
 		self.total_size                  = self.width_in_bytes * self.depth
-
 		self.tech_node_um                = self.process.tech_um
 		self.t_hold_ns                   = self.process.t_hold_ns
 		self.t_setup_ns                  = self.process.t_setup_ns
 		self.cap_input_pf                = self.process.cap_input_pf
-
-		# Optional Memory Parameters
 		self.num_banks                   = int(sram_data.get('banks', 1))
 		self.pinPitchFactor              = int(sram_data.get('pinPitchFactor', 1))
 		self.cache_type                  = str(sram_data.get('type','cache'))
 		self.write_mode                  = str(sram_data.get('write_mode','write_first'))
-
-		# Parameter overrides
-		self.column_mux_factor_overriden = True if 'column_mux_factor_override' in sram_data else False
-		self.column_mux_factor           = float(sram_data.get('column_mux_factor_override', self.process.column_mux_factor))
+		self.column_mux_factor_overriden = True if 'column_mux_factor' in sram_data else False
+		self.column_mux_factor           = float(sram_data.get('column_mux_factor', self.process.column_mux_factor))
 		self.r                           = int(sram_data['ports'].get('r', 0))
 		self.w                           = int(sram_data['ports'].get('w', 0))
 		self.rw                          = int(sram_data['ports'].get('rw', 0))
-
+		self.has_write_mask              = True if "write_granularity" in sram_data else False
+		self.fakeram_name_extension		 = 'fakeram.' if self.process.add_fakeram_extension == True else ''
+		self.write_granularity           = None
 		self.results_dir                 = None
 		self.cacti_dir				     = None
-
 		self.area_mm2                    = None
 		self.height_um                   = None
 		self.width_um                    = None
-	
-		# Write Masks
-		self.has_write_mask              = None
-		self.write_granularity           = None
 		self.wmask                       = None
-
-		# Custom Data Only Required / Optional Hybrid Data Override
 		self.access_time_ns              = None
 		self.cycle_time_ns               = None
 		self.standby_leakage_per_bank_mW = None
@@ -65,8 +53,6 @@ class Memory():
 		self.dyn_read_energy_nj          = None
 		self.dyn_write_energy_nj         = None
 		self.pin_dynamic_power_mW        = None
-
-		# Custom Data Only Required
 		self.custom_data                 = None
 		self.finPitch_nm                 = None
 		self.contacted_poly_pitch_nm     = None
@@ -78,7 +64,6 @@ class Memory():
 		self.dw_write                    = None
 		self.dh_rw                       = None
 		self.dw_rw                       = None
-
 		self.__post_init__()
 
 	def __post_init__(self):

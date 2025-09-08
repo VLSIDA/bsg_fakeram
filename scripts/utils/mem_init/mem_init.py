@@ -2,12 +2,12 @@
 import os
 
 from pathlib import Path
-from utils.init_mem.modules import *
-from utils.init_mem.mem_area import *
-from utils.init_mem.mem_globals import *
+from utils.mem_init.modules import *
+from utils.mem_init.mem_area import *
+from utils.mem_init.mem_globals import *
 
 
-def memory_main(mem: object, custom_data: dict, output_dir = None, cacti_dir = None) -> object:
+def memory_initializer(mem: object, custom_data: dict, output_dir = None, cacti_dir = None) -> object:
 
     name = mem.name
 
@@ -31,7 +31,7 @@ def memory_main(mem: object, custom_data: dict, output_dir = None, cacti_dir = N
     """ First want to initialize custom data in case 
     custom data is used for a custom only or hybrid sram
     configuration """
-    custom_inst = CustomData(custom_data) 
+    custom_inst = CustomData(custom_data)
     mem.custom_data = custom_inst
 
     if use_cacti(mem):      

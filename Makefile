@@ -13,7 +13,7 @@ view.%:
 	klayout ./$(OUT_DIR)/$*/$*.lef &
 
 clean:
-	rm -rf ./$(OUT_DIR)
+	rm -rf $(OUT_DIR)
 
 #=======================================
 # TOOLS

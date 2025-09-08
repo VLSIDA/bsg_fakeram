@@ -68,7 +68,7 @@ def generate_lib( mem ):
 
     # Start generating the LIB file
 
-    LIB_file = open(os.sep.join([mem.results_dir, name + '.lib']), 'w')
+    LIB_file = open(os.sep.join([mem.results_dir, mem.fakeram_name_extension + name + '.lib']), 'w')
 
     write_init_lib(LIB_file, name, voltage, date, current_time, bits, area, max_slew, addr_width, addr_width_m1)
 

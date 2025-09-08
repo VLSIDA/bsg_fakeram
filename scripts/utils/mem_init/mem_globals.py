@@ -1,7 +1,7 @@
 import os
 import math
 
-from utils.init_mem.modules import *
+from utils.mem_init.modules import *
 from decimal import Decimal, ROUND_UP
 from utils.cacti_config import cacti_config
 
@@ -37,9 +37,10 @@ def print_init_sram(gbl):
          f'pinPitchFactor              : {gbl.pinPitchFactor}\n'
          f'y_pinOffset_um              : {gbl.process.y_pinOffset_um}\n'
          f'x_pinOffset_um              : {gbl.process.x_pinOffset_um}\n'
-         f'pinWidth_um                 : {gbl.process.pinWidth_um}\n'
-         f'pinHeight_um                : {gbl.process.pinHeight_um}\n'  
-
+         f'x_pinWidth_um               : {gbl.process.x_pinWidth_um}\n'
+         f'x_pinHeight_um              : {gbl.process.x_pinHeight_um}\n'  
+         f'y_pinWidth_um               : {gbl.process.y_pinWidth_um}\n'
+         f'y_pinHeight_um              : {gbl.process.y_pinHeight_um}\n'  
          f'\nPOWER GRID\n'
          f'metLayerPowerGrid           : {gbl.process.metLayerPowerGrid}\n'
          f'directionPowerGrid          : {gbl.process.directionPowerGrid}\n'
@@ -55,8 +56,6 @@ def print_init_sram(gbl):
          f'\nADDITIONAL PARAMS\n'
          f'heightSnapPinPitch          : {gbl.process.heightSnapPinPitch}\n'
          f'widthSnapPinPitch           : {gbl.process.widthSnapPinPitch}\n'
-         f'equidistantPins             : {gbl.process.equidistantPins}\n'
-         f'verticalPinsOnly            : {gbl.process.verticalPinsOnly}\n'
          f'column_mux_factor overriden : {gbl.column_mux_factor_overriden}\n'
          f'column_mux_factor           : {gbl.process.column_mux_factor}\n'
          f'snapWidth_um                : {gbl.process.snapWidth_um}\n'
@@ -152,20 +151,19 @@ def get_bank_dimensions(gbl, height_um, width_um) -> float:
 def get_write_granularity(gbl) -> int:
     """ returns write granularity of sram """
     sram_data         = gbl.sram_data
-    has_write_mask    = gbl.has_write_mask
-    write_granularity = gbl.write_granularity
     width_in_bits     = gbl.width_in_bits
 
-    if 'write_granularity' in sram_data:
-        has_write_mask = True
-        write_granularity = int(sram_data['write_granularity'])
+    if 'write_granularity' in sram_data and sram_data['write_granularity'] > 0:
+        gbl.has_write_mask = True
+        gbl.write_granularity = int(sram_data['write_granularity'])
     else:
-        has_write_mask = False
-        write_granularity = width_in_bits
+        gbl.has_write_mask = False
+        gbl.write_granularity = width_in_bits
+        return
         
-    if has_write_mask:
-        if (width_in_bits % write_granularity == 0):
-            return width_in_bits // write_granularity
+    if gbl.has_write_mask:
+        if (width_in_bits % gbl.write_granularity == 0):
+            return width_in_bits // gbl.write_granularity
         else:
             raise Exception(f"Invalid write_granularity: width_in_bits ({width_in_bits}) is not divisible by write_granularity ({gbl.write_granularity}).")
     else:

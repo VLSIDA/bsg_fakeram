@@ -24,42 +24,78 @@ JSON file that can be found in `./example_cfgs/asap7.cfg`:
 
 ```
 {
-  "custom_tech_name": "asap7",
-  "hybrid": false,
-  "column_mux_factor": 4,
   "tech_nm": 7,
   "voltage": 0.7,
   "metalPrefix": "M",
-  "metal_layer": "M4",
-  "pinWidth_nm": 24,
-  "pinPitch_nm": 48,
   "manufacturing_grid_nm": 1,
-  "snap_width_nm": 190,
-  "snap_height_nm": 1400,
-  "flipPins": "false",
+  "pinParams": {
+    "x_metLayerPin": 3,
+    "x_pinPitch_nm": 36,
+    "x_pinWidth_nm": 18,
+    "x_pinHeight_nm": 36,
+    "x_pinOffset_nm": 0,
+    "y_metLayerPin": 4,
+    "y_pinPitch_nm": 48,
+    "y_pinWidth_nm": 24,
+    "y_pinHeight_nm": 48,
+    "y_pinOffset_nm": 0
+  },
+  "powerGridParams": {
+    "directionPowerGrid": "horizontal",
+    "metLayerPowerGrid": 4,
+    "powerGridWidth_nm": 96,
+    "powerGridPitch_nm": 384
+  },
+  "timing": {
+    "t_setup_ns": 0.050,
+    "t_hold_ns": 0.050,
+    "cap_input_pf": 0.005
+  },
+  "additionalParams": {
+    "heightSnapPinPitch": false,
+    "widthSnapPinPitch": true,
+    "column_mux_factor": 4,
+    "snapWidth_nm": 190,
+    "snapHeight_nm": 1400
+  },
+  "use_custom_tech": true,
+  "custom_tech": {
+    "access_time_ns": 0.2183,
+    "cycle_time_ns": 0.2566,
+    "fo4_ps": 9.0632,
+    "standby_leakage_per_bank_mW": 0.1289,
+    "pin_dynamic_power_mW": 0.0013449,
+    "finPitch_nm": 27,
+    "contacted_poly_pitch_nm": 54,
+    "h0_tracks": 10,
+    "w0_polys": 2,
+    "dh_read": 2,
+    "dw_read": 0.5,
+    "dh_write": 2.5,
+    "dw_write": 0.5,
+    "dh_rw": 1,
+    "dw_rw": 0.5
+  },
+  "add_fakeram_extension": true,
   "srams": [
     {
-      "name": "testram_1w_64w256d_16_sram",
-      "width": 64,
-      "depth": 256,
+      "name": "testram7_1rw_32w1024d_sram",
+      "width": 32,
+      "depth": 1024,
       "banks": 1,
-      "column_mux_factor_override": 2,
+      "column_mux_factor": 6,
       "write_mode": "write_first",
-      "write_granularity": 16,
-      "r": 0,
-      "w": [1, "left"],
-      "rw": 0
-    }
+      "ports": {
+        "r": 0,
+        "w": 0,
+        "rw": 1
+      }
+    },
+    ...
   ]
 }
 ```
-
-`custom_tech_name` - Name of the custom tech yml file
-
-`hybrid` - (Optional : False) Overrides specific cacti values with values in yml file. Otherwise will use cacti as default.
-
-`column_mux_factor` - (Optional : 1) It reduces the number of sense amplifiers needed, saving area, but may increase access time. When used the height is divided by its column mux factor and width multiplied by its column mux factor for all srams. Column mux factor defaults to 1. Can be overriden for a specific sram with parameter column_mux_factor_override in "sram". If CACTI is ran, this is ignored.
-
+-----
 `tech_nm` - The name of the target technology node (in nm). Used in Cacti for
 modeling PPA of the SRAM.
 
@@ -67,69 +103,148 @@ modeling PPA of the SRAM.
 
 `metalPrefix` - The string that prefixes metal layers.
 
-`pinWidth_nm` - The width of the signal pins (in nm).
+`manufacturing_grid_nm` - (Optional : Default 1) The manufacturing grid for specific technology (in nm).
 
-`pinPitch_nm` - The minimum pin pitch for signal pins (in nm). All pins will
-have a pitch that is a multuple of this pitch. The first pin will be a
-multiple of this pitch from the bottom edge of the macro too.
+-----
+`pinParams`: Main Pin Parameters
 
-`snapWidth_nm` - (Optional : 1) Snap the width of the generated memory to a
+`x_metLayerPin` - Metal layer for horizontal pins (top and bottom of SRAM)
+
+`y_metLayerPin` - Metal layer for vertical pins (left and right of SRAM)
+
+`x_pinPitch_nm` - The minimum pin pitch for signal pins (in nm) for top/bottom (horizontal) pins.
+
+`y_pinPitch_nm` - The minimum pin pitch for signal pins (in nm) for left/right (vertical) pins.
+
+`x_pinOffset_nm` - (Optional : Default 0) Fixed offset x pin pitch (in nm), x pin pitch + x offset. Unaffected by pinPitchFactor
+
+`y_pinOffset_nm` - (Optional : Default 0) Fixed offset y pin pitch (in nm), y pin pitch + y offset. Unaffected by pinPitchFactor
+
+`x_pinWidth_nm` - The width of the horizontal signal pins (in nm).
+
+`x_pinHeight_nm` - The height of the horizontal signal pins (in nm).
+
+`y_pinWidth_nm` - The width of the vertical signal pins (in nm).
+
+`y_pinHeight_nm` - The height of the vertical signal pins (in nm).
+
+-----
+`powerGridParams`: Main Power Grid Parameters
+
+`directionPowerGrid` - (Options: "vertical" or "horizontal") Specify the direction of strapes.
+
+`metLayerPowerGrid` - (Optional : Default 4) Metal layer of of strapes.
+
+`powerGridWidth_nm` - (Optional : Default "pinWidth_nm") Strapes width (in nm).
+
+`powerGridPitch_nm` - (Optional : Default "y_pinPitch_nm") Strapes pitch (in nm).
+
+`powerGridOffset_nm` - (Optional : Default 0) Strapes offset (in nm), pitch + offset.
+
+-----
+`timing`: Timing for all SRAMs
+
+`t_setup_ns` - Arbitrary hold time (in ns).
+
+`t_hold_ns` - Arbitrary setup time (in ns).
+
+`cap_input_pf` - Capacitance input (in pf).
+
+-----
+`additionalParams`: Optional Additional Parameters for SRAMs
+
+`heightSnapPinPitch` - (Optional : Default False) Snap SRAMs height to nearest pin pitch. Y pin offset will be ignored.
+
+`widthSnapPinPitch` - (Optional : Default False) Snap SRAMs width to nearest pin pitch. X pin offset will be ignored.
+
+`verticalPinsOnly` - (Optional : Default False) Set all pins to left and right sides of sram.
+
+`snapWidth_nm` - (Optional : Default 1) Snap the width of the generated memory to a
 multiple of the given value.
 
-`snapHeight_nm` - (Optional : 1) Snap the height of the generated memory to a
+`snapHeight_nm` - (Optional : Default 1) Snap the height of the generated memory to a
 multiple of the given value.
 
-`flipPins` - (Optional : false) Flip the pins. If set to false then metal 1 is
-assumed to be vertical. This means that signal pins will be on metal 4 and the
-supply straps (also on metal 4) will be horizontal. If set to true then metal 1
-is assumed to be horizontal. This means that signal pins will be on metal 3 and
-the supply straps (on metal 4) will be vertical.
+`column_mux_factor` - (Optional : Default 1) It reduces the number of sense amplifiers needed, saving area, but may increase access time. When used the height is divided by its column mux factor and width multiplied by its column mux factor for all srams. Column mux factor defaults to 1. Can be overriden for a specific sram with parameter column_mux_factor_override in "sram". If CACTI is ran, this is ignored.
 
-`manufacturing_grid_nm` - The manufacturing grid for specific technology (in nm).
+`add_fakeram_extension` - (Optional : Default False) Add 'fakeram.' prefix to all SRAM names.
+
+### Custom Tech Configuration
+
+Setting "use_custom_tech" and defining the parameters in "custom_tech" in json would be optimal since cacti does not support below 28nm or above 180nm. This config can be found in `example_cfgs/asap7.cfg`
+
+`hybrid` - (Optional : Default False) Overrides specific cacti values with values in yml file. Otherwise will use cacti as default.
+
+`access_time_ns` - Access time (in ns).
+
+`cycle_time_ns` - Cycle time (in ns).
+
+`fo4_ps` - Fanout of 4 (in ps).
+
+`standby_leakage_per_bank_mW` - Standby leakage per bank (in mW).
+
+`pin_dynamic_power_mW` - All pin dynamic power (in mW).
+
+`finPitch_nm` - (FinFET Architecture) Fin pitch (in nm).
+
+`contacted_poly_pitch_nm` - (FinFET Architecture) Contacted poly pitch (in nm).
+
+`h0_tracks` - (FinFET Architecture) Height Tracks.
+
+`w0_polys` - (FinFET Architecture) Width Polys.
+
+`dh_read` - (Optional : Default 1) Dummy read port height overhead scaling factor.
+
+`dw_read` - (Optional : Default 1) Dummy read port width overhead scaling factor.
+
+`dh_write` - (Optional : Default 1) Dummy write port height overhead scaling factor.
+
+`dw_write` - (Optional : Default 1) Dummy write port width overhead scaling factor.
+
+`dh_rw` - (Optional : Default 1) Dummy read write port height overhead scaling factor.
+
+`dw_rw` - (Optional : Default 1) Dummy read write port width overhead scaling factor.
+
+
+```
+"access_time_ns": 0.2183,
+"cycle_time_ns": 0.2566,
+"fo4_ps": 9.0632,
+"standby_leakage_per_bank_mW": 0.1289,
+"pin_dynamic_power_mW": 0.0013449,
+
+"finPitch_nm": 27,
+"contacted_poly_pitch_nm": 54,
+
+"h0_tracks": 10,
+"w0_polys": 2,
+
+// Optional params, default: 1
+"dh_read": 2,
+"dw_read": 0.5,
+"dh_write": 2.5,
+"dw_write": 0.5,
+"dh_rw": 1,
+"dw_rw": 0.5
+
+```
 
 ### Memory Configuration
 
 `srams` - A list of SRAMs to generate. Each sram should have a `name`, `width`
 (or the number of bits per word), `depth` (or number of words), and `banks`.
 
-`column_mux_factor_override` - ( Optional : column_mux_factor value ) Overrides column_mux_factor for a specific sram.
+`banks` - (Optional : Default 1 | Options "2" , "4") Specify number of banks.
 
-`write_mode` - ( Optional : write_first ) For Read Write ports, optional to chose as read_first otherwise write_first.
+`column_mux_factor` - (Optional : Default "column_mux_factor") Overrides column_mux_factor for a specific sram.
 
-`write_granularity` -  Specifies number of bits that can be written in a single write operation.
+`write_mode` - (Optional : Default "write_first" | Options "read_first" , "write_first") For Read Write ports, optional to chose as read_first otherwise write_first.
 
-`Ports` - ( Optional : Left ) Index one specifies number of ports, index two specifies which side port will be placed on. Defaults to left.
-`r` -  [1, "right"],
-`w` -  [1, "right"],
-`rw` -  [1, "left"]
+`write_granularity` - (Optional : Default "width") Specifies number of bits that can be written in a single write operation.
 
-### Porting new tech
-
-Creating a yml file would be optimimal since cacti does not support below 28nm.
-YML file that can be found in `./tech/asap7.cfg`:
-```
-t_setup_ns: 0.050
-t_hold_ns: 0.050
-access_time_ns: 0.2183
-cycle_time_ns: 0.2566
-fo4_ps: 9.0632
-standby_leakage_per_bank_mW: 0.1289
-pin_dynamic_power_mW: 0.0013449
-cap_input_pf: 0.005
-contacted_poly_pitch_nm: 54
-finPitch_nm: 27
-H0_TRACKS: 10
-W0_POLYS: 2
-
-// Optional : Default to 1
-DH_READ: 2
-DW_READ: 0.5
-DH_WRITE: 2.5
-DW_WRITE: 0.5
-DH_RW: 1
-DW_RW: 0.5
-
-```
+`Ports` :
+ - Read ports, address and control pins are on the left, data pins are on the top
+ - Write ports, address and control pins are on the right, data pins are on the bottom.
 
 ### Running the Generator
 

@@ -1,6 +1,30 @@
+
 from utils.gen_lef.lef_globals import snap_to_grid
 
-def align_track_tb_pin(mem, y_edge, pinHeight, track_offset_y, track_pitch_y, pin_name, side) -> tuple:
+################################################################################
+# TRACK ALIGNMENT HELPERS
+#
+# Only when heightSnapPinPitch is TRUE:
+#   Pins and macro height are aligned to routing tracks.
+#
+# Functions:
+#   align_track_tb_pin()   - For top/bottom pins, centers the pin on the nearest
+#                            Y-track using (track_offset_y, track_pitch_y) and
+#                            returns (y_bottom, y_top) for the pin rectangle.
+#
+#   snap_height_to_track() - Snaps pin height to manufacturing grid, aligns the
+#                            bottom pin center to a Y-track, computes the top pin
+#                            center on a Y-track so all rows fit, and increases
+#                            macro height as needed; returns the final snapped height.
+################################################################################
+
+def align_track_tb_pin(mem
+            , y_edge
+            , pinHeight
+            , track_offset_y
+            , track_pitch_y
+            , pin_name
+            , side ) -> tuple:
     heightSnapPinPitch = mem.process.heightSnapPinPitch
     widthSnapPinPitch  = mem.process.widthSnapPinPitch
     
@@ -31,12 +55,14 @@ def align_track_tb_pin(mem, y_edge, pinHeight, track_offset_y, track_pitch_y, pi
             
     return y_bottom, y_top
 
-def snap_height_to_track(mem, h, scaled_y_pitch):
+def snap_height_to_track(mem
+                , h
+                , scaled_y_pitch
+                ) -> float:
     heightSnapPinPitch    = mem.process.heightSnapPinPitch
-    widthSnapPinPitch     = mem.process.widthSnapPinPitch
     y_offset              = mem.process.y_pinOffset_um
     manufacturing_grid_um = mem.process.manufacturing_grid_um
-    pin_height            = mem.process.pinHeight_um
+    pin_height            = mem.process.x_pinHeight_um
 
     """adjust macro height to fit"""
     if heightSnapPinPitch == True:

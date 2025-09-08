@@ -22,7 +22,7 @@ def generate_verilog( mem ):
     write_granularity = mem.write_granularity
     
 
-    V_file = open(os.sep.join([mem.results_dir, name + '.v']), 'w')
+    V_file = open(os.sep.join([mem.results_dir, mem.fakeram_name_extension + name + '.v']), 'w')
 
     V_file.write('module %s\n' % name)
     V_file.write('(\n')
@@ -110,7 +110,7 @@ def generate_verilog_bb( mem ):
     has_wmask  = mem.has_write_mask
 
 
-    V_file = open(os.sep.join([mem.results_dir, name + '.bb.v']), 'w')
+    V_file = open(os.sep.join([mem.results_dir, mem.fakeram_name_extension + name + '.bb.v']), 'w')
 
     V_file.write('module %s\n' % name)
     V_file.write('(\n')

@@ -1,7 +1,7 @@
 import os
 import sys
 import math 
-from utils.init_mem.mem_globals import *
+from utils.mem_init.mem_globals import *
 
 
 def get_macro_dimensions(mem) -> float:
@@ -16,11 +16,8 @@ def get_macro_dimensions(mem) -> float:
 	width_in_bits           = int(mem.sram_data['width'])
 	depth                   = int(mem.sram_data['depth'])
 	num_banks               = int(mem.sram_data['banks'])
-
 	h0_tracks               = mem.h0_tracks or 1
 	w0_polys                = mem.w0_polys or 1
-
-	# dummy overhead
 	dh_read                 = mem.dh_read or 1
 	dw_read                 = mem.dw_read or 1
 	dh_write                = mem.dh_write or 1
@@ -53,7 +50,7 @@ def get_macro_dimensions(mem) -> float:
 	total_width  = all_bitcell_width  * 1.2
 	return total_height, total_width
 
-def final_area(mem):
+def final_area(mem) -> float:
     snapWidth_nm = mem.process.snapWidth_nm
     snapHeight_nm = mem.process.snapHeight_nm
     manufacturing_grid_nm = mem.process.manufacturing_grid_nm
@@ -69,7 +66,6 @@ def final_area(mem):
     mem.width_um = round_up_to_multiple(mem.width_um*1000.0, snapWidth_nm) / 1000.0
     mem.height_um = round_up_to_multiple(mem.height_um*1000.0, snapHeight_nm) / 1000.0
 
-    # Ensure snapping to grid
     mem.height_um = round_up_to_multiple(mem.height_um, manufacturing_grid_nm)
     mem.width_um = round_up_to_multiple(mem.width_um, manufacturing_grid_nm)
 
@@ -78,22 +74,12 @@ def final_area(mem):
     y_track_pitch = pinPitch_um
     x_track_pitch = x_pinPitch_um
 
-    # ensure matches tracks
     mem.height_um = round_up_to_multiple(mem.height_um, y_track_pitch)
     mem.width_um = round_up_to_multiple(mem.width_um, x_track_pitch)
     
-    # Get area in microns
     mem.area_um2 = mem.width_um * mem.height_um
     
-    # might use decimal instead of round up to multiple
     print(f'mem.width_um {mem.width_um}')
     print(f'mem.height_um {mem.height_um}')
-    
-    # mem.width_um += (mem.width_um % x_pinPitch_um)
-    # mem.width_um = math.ceil(mem.width_um / x_pinPitch_um) * x_pinPitch_um
 
-    # height_nm = round_up_to_multiple(mem.height_um*1000, mem.height_um*1000)
-    # width_nm = round_up_to_multiple(mem.width_um*1000, mem.width_um*1000)
-
-    # Return area of sram
     return mem.width_um * mem.height_um
