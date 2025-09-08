@@ -88,6 +88,19 @@ class PinGrid(LEF_Parameters):
                     , list2       :  list
                     , side1       :  str
                     , side2       :  str ) -> None:  
+        """ Generate available pin slots along a single dimension for opposing sides of a cell.
+
+        Creates pin slot positions along either the width (for top/bottom pins) or height 
+        (for left/right pins) of a semiconductor cell layout. For each valid position, 
+        generates PinSlot objects across all metal layers for both opposing sides.
+
+        Note:
+            - Creates slots for all metal layers (1 to self.total_layers)
+            - Slot position is the pin's starting edge (step - pin_width/2), so when 
+            writing to LEF file, you can simply add the full pin_width to get the 
+            ending edge without additional calculations
+            - Continues until remaining space is less than dummy_pin + offset
+        """
         step = start_coord
         while dimension - dummy_pin - offset > step:
             slot = d_get_subtract(step, d_get_divide(pin_width, 2))
@@ -112,6 +125,7 @@ class PinGrid(LEF_Parameters):
 
 ##### Verification 
     def _validate_list(self) -> None:
+        """ Entry point for validating each slot """
         manufacturing_grid = self.manufacturing_grid_um
 
         list_top_pins      = self._parse_list_side_manufacturing_grid(self.list_top_pins, manufacturing_grid)
