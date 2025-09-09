@@ -12,10 +12,9 @@ from utils.gen_lef.decimal_helpers import *
 # 
 # Functions:
 #   gen_header()                         - write LEF header, properties, open MACRO
+#   gen_straps()                         - write VSS/VDD power grid pins
 #   gen_obs()                            - write OBS blockage, optional OVERLAP,
-#                                           close MACRO and LIBRARY
-#
-#   gen_straps()                        - write VSS/VDD power grid pins
+#                                          close MACRO and LIBRARY
 #   write_input_vertical_pin_to_lef()    - write INPUT pin on left/right edge
 #   write_output_vertical_pin_to_lef()   - write OUTPUT pin on left/right edge
 #   write_input_horizontal_pin_to_lef()  - write INPUT pin on top/bottom edge

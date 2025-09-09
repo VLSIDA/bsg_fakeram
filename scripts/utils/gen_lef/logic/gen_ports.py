@@ -61,13 +61,10 @@ class GeneratePorts(GeneratePinList
                 ]
         
         self.ports_written = self._init_ports_written()
-        
-        self.is_rport_and_rw_port = True if (self.r_ports_dict['r'] >= 1 and self.r_ports_dict['rw'] >= 1) else False
-        self.is_rport_or_rw_port = True if (self.r_ports_dict['r'] >= 1 or self.r_ports_dict['rw'] >= 1) else False
-        self.is_rwport_control_written = False
 
-        # FIXME want to move all 'is rw port written' logic to the wrappers.
-        # wrappers should handle those kind of cases
+        self.is_rw_port_control_written = False
+
+        self._update_section_placement()
 
 #### Private Functions
 #---------------------
@@ -120,7 +117,60 @@ class GeneratePorts(GeneratePinList
             return self.ports_written[f"{port_name}{port_type_index}_addr_in[{pin_bit_index}]"] == True
         else:
             return self.ports_written[f"{port_name}{port_type_index}_{pin}"] == True
-    
+        
+    def _update_section_placement(self):
+        """ Update section placement based on port configuration """
+        total_w_ports = sum(self.w_ports_dict.values())
+        
+        w_addr_total_padding = 0
+        if total_w_ports > 1:
+            w_addr_total_padding = (total_w_ports - 1) * self.right_group_padding
+        
+        w_addr_effective_end = self.w_addr_in_section_end + w_addr_total_padding
+        
+        if self.is_r_port_and_w_port:
+            print("INFO: Detected both R and RW ports - adjusting R address section")
+            r_addr_section_height = d_get_subtract_round_second_fpoint(
+                self.r_addr_in_section_end, self.r_addr_in_section_start
+            )
+            self.padding = 0.1
+            
+            self.r_addr_in_section_start = w_addr_effective_end + self.padding
+            self.r_addr_in_section_end = self.r_addr_in_section_start + r_addr_section_height
+            
+            pure_r_ports = self.r_ports_dict.get("r", 0)
+            if pure_r_ports > 1:
+                r_addr_total_padding = (pure_r_ports - 1) * self.left_group_padding
+                self.r_addr_in_section_end += r_addr_total_padding
+                
+            print(f"INFO: Adjusted R addr section to: {self.r_addr_in_section_start:.3f} - {self.r_addr_in_section_end:.3f}")
+            print(f"INFO: W addr section (with RW): {self.w_addr_in_section_start:.3f} - {w_addr_effective_end:.3f}")
+        
+        # Handle case where only write ports exist
+        if not self.is_r_port_or_rw_port:
+            self.w_control_side = 'left'
+            self.w_control_section_start = self.r_control_section_start
+            self.w_control_section_end = self.r_control_section_end
+            
+            self.w_addr_in_side = 'left' 
+            self.w_addr_in_section_start = self.r_addr_in_section_start
+            self.w_addr_in_section_end = self.r_addr_in_section_end
+            print('INFO: Left side available for write address and control pins')
+            
+            self.wd_in_side = "top"
+            print('INFO: Top side available for write data pins')
+
+    def _strip_port_index(self
+            , key : str) -> str:
+        """ Remove trailing digits from the port base (before the first underscore) """
+        if "_" not in key:
+            return key.rstrip("0123456789")
+        
+        prefix = key.split("_", 1)[0]
+        base = prefix.rstrip("0123456789") 
+        rest = key.split("_", 1)[1]
+        return f"{base}_{rest}"
+
     def _is_overlapped(self
             , id       :  str
             , pin_list :  list[object]
@@ -141,15 +191,15 @@ class GeneratePorts(GeneratePinList
         """
         Write read and read-write port control pins based on threshold, banks, and group spacing.
         Handles special case if there are any read-write ports of the given sram will delete from
-        local dictionary, then marking `is_rwport_control_written` to False, leaving 
+        local dictionary, then marking `is_rw_port_control_written` to False, leaving 
         `write_wport_control_pin` function to write rw port to the right side. 
         """
         total_r_port_control_pins = 0 
         r_ports_dict = self.r_ports_dict.copy()
 
-        if self.is_rport_and_rw_port:
+        if self.is_r_port_and_rw_port:
             del r_ports_dict["rw"]
-            self.is_rwport_control_written = False
+            self.is_rw_port_control_written = False
 
         total_r_ports = sum(r_ports_dict.values())
         for curr_port_num in range(0, total_r_ports):
@@ -197,7 +247,7 @@ class GeneratePorts(GeneratePinList
         """
         Write read and read-write port address input pins based on threshold, banks, and group spacing.
         Handles special case if there are any read-write ports of the given sram will delete from
-        local dictionary, then marking `is_rwport_control_written` to False, leaving 
+        local dictionary, then marking `is_rw_port_addr_written` to False, leaving 
         `write_wport_addr_in_pin` function to write rw port to the right side. 
         """
         total_r_addr_in_pins = 0 
@@ -206,7 +256,8 @@ class GeneratePorts(GeneratePinList
         # Let w_addr_in generate rw's w_addr_in
         # Assuming rports has priority in generation
         r_ports_dict = self.r_ports_dict.copy()
-        if self.is_rport_and_rw_port:
+
+        if self.is_r_port_and_rw_port:
             del r_ports_dict["rw"]
             self.is_rw_port_addr_in_written = False
 
@@ -247,9 +298,6 @@ class GeneratePorts(GeneratePinList
                 )
                 self.ports_written[f"{port_name}{port_type_index}_addr_in[{pin_bit_index}]"] = True # mark here as used
                 total_r_addr_in_pins += pin_used
-
-                # if port_name == 'rw':
-                #     self.is_rw_port_addr_in_written = True
                 
                 if total_r_addr_in_pins > self.r_addr_in_threshold_left:
                     """
@@ -315,7 +363,7 @@ class GeneratePorts(GeneratePinList
     def write_wport_control_pin(self):
         """
         Write write and read-write port control pins based on threshold, banks, and group spacing.
-        Handles special case when read-write ports of the given sram if `is_rwport_control_written`
+        Handles special case when read-write ports of the given sram if `is_rw_port_control_written`
         is set to True, this function will not write read-write control pin to right side.
         Additionally avoids overlap by validating each generated pin location before insertion.        
         """
@@ -323,7 +371,7 @@ class GeneratePorts(GeneratePinList
         w_port_control_padding = self.left_group_padding
         w_ports_dict = self.w_ports_dict.copy()
 
-        if self.is_rwport_control_written:
+        if self.is_rw_port_control_written:
             del w_ports_dict['rw']
 
         total_w_ports = sum(w_ports_dict.values())
@@ -331,8 +379,6 @@ class GeneratePorts(GeneratePinList
 
             pin_list = self.get_list_sectioned_w_control_pins_wrapper(curr_port_num
                                                         , self.w_num_control_pins
-                                                        , self.is_rport_or_rw_port
-                                                        , self.is_rw_port_addr_in_written
             )
             w_port_control_padding += self.left_group_padding
 
@@ -390,8 +436,6 @@ class GeneratePorts(GeneratePinList
         for curr_port_num in range(0, total_w_ports):
             pin_list = self.get_list_sectioned_w_addr_pins_wrapper(
                 curr_port_num, 
-                self.is_rport_or_rw_port,
-                self.is_rw_port_addr_in_written
             )
             port_name = None
             port_type_index = None
@@ -445,8 +489,8 @@ class GeneratePorts(GeneratePinList
         total_wd_in_port_bits = sum(self.w_ports_dict.values()) * self.bits
 
         # top is free for wd in
-        if self.is_rport_or_rw_port == False:
-            self.wd_in_side = "top"
+        # if self.is_r_port_or_rw_port == False:
+            # self.wd_in_side = "top"
 
         pin_list = self.get_equidistant_whole_side_wd_pins_wrapper(
             self.wd_in_side, self.wd_in_metal_layer, total_wd_in_port_bits

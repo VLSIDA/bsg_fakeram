@@ -66,7 +66,7 @@ class GeneratePinList(PinGrid):
                                     , metLayer    : int
                                     , num_pins    : float = None
                                     , new_section : bool  = None
-                                    , padding     : float = None) -> list:
+                                    , padding     : float = None) -> list[object]:
         """
         Filter available slots in section, then distribute num_pins evenly across those indices.
         Validates against available slots created by the class.
@@ -202,7 +202,7 @@ class GeneratePinList(PinGrid):
                                 , margin       : float = None
                                 , num_pins     : int   = None
                                 , pin_list     : list  = None
-                                , min_distance : int   = None) -> list:
+                                , min_distance : int   = None) -> list[object]:
         """
         Generate equidistant pins across whole side with margin.
         """
