@@ -13,9 +13,10 @@ PERIPHERY_MULT_PER_DIM = 2.5
 
 # Target aspect ratio (longer/shorter side) of the bitcell array.
 # A real SRAM compiler picks column_mux to land near 1-2x; we pick the
-# {1,2,4,8,16,32} value that minimises distance to 1.5x.
+# K value that minimises distance to 1.5x. The range covers narrow-word
+# deep memories — e.g. 16x32768 needs K=64 to get the array to ~square.
 TARGET_ASPECT = 1.5
-COL_MUX_CANDIDATES = (1, 2, 4, 8, 16, 32)
+COL_MUX_CANDIDATES = (1, 2, 4, 8, 16, 32, 64, 128, 256)
 
 # Minimum macro dimension: below this the PDN ring cannot close.
 MIN_DIM_UM = 6.221
