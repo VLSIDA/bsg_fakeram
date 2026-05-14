@@ -1,0 +1,124 @@
+bsg_fakeram (VLSIDA fork)
+=========================
+
+This project is a derivative work of two upstream FakeRAM generators,
+both used by their respective groups to produce black-box SRAM
+LEF / LIB / Verilog from a small JSON cfg.
+
+LICENSE: BSD 3-Clause (see LICENSE). Code carried over from upstreams
+that ship without a LICENSE file (FakeRAM2.0 below) is contributed
+into this work under the same BSD 3-Clause; attribution to the
+original authors is retained in this NOTICE and in per-file headers.
+
+
+Upstream 1: bsg_fakeram (Bespoke Silicon Group, UW)
+---------------------------------------------------
+
+    https://github.com/bespoke-silicon-group/bsg_fakeram
+    Copyright (c) 2019, Bespoke Silicon Group
+    BSD 3-Clause License
+
+BSG's bsg_fakeram is the original "Black-box SRAM Generator" — the
+Cacti-driven flow that emits LEF/LIB/Verilog from a JSON cfg listing
+SRAM sizes. The single-port `rw` flow, the Cacti glue, the LEF/LIB/
+Verilog generators, the example tech cfgs, and the Makefile-driven
+build are all from this project.
+
+Files inherited directly (with modifications):
+
+  Makefile
+  patches/cacti.patch
+  patches/nmlimitremoval_patch.sh
+  scripts/run.py
+  scripts/utils/cacti_config.py      (BSG only — not in FakeRAM2.0)
+  scripts/utils/class_memory.py      (shared name with FakeRAM2.0,
+                                      structurally closer to BSG's)
+  scripts/utils/class_process.py     (ditto)
+  scripts/utils/generate_lef.py      (BSG name; FakeRAM2.0's variant
+                                      is `utils/create_lef.py`)
+  scripts/utils/generate_lib.py      (BSG; FakeRAM2.0 = `create_lib.py`)
+  scripts/utils/generate_verilog.py  (BSG; FakeRAM2.0 = `create_verilog.py`)
+
+
+Upstream 2: FakeRAM2.0 (ABKGroup, UCSD)
+---------------------------------------
+
+    https://github.com/ABKGroup/FakeRAM2.0
+    No LICENSE file in upstream; this fork incorporates portions under
+    BSD 3-Clause with attribution.
+
+FakeRAM2.0 added an asap7-specific analytical area model (no Cacti
+tech file for asap7 exists), per-bit / per-byte write masks, and
+the multi-port (`1r1w`, `2r1w`, `1rw1r`, `2rw`, ...) port logic that
+neither BSG's original nor any other public FakeRAM had at the time.
+
+Files inherited from FakeRAM2.0:
+
+  scripts/utils/area.py              (originated in FakeRAM2.0 only;
+                                      no BSG counterpart)
+  Multi-port / write-mask logic in   (FakeRAM2.0 introduced; mixed
+    scripts/utils/class_memory.py     into BSG's structure here)
+  Multi-port pin emission paths in   (same story)
+    scripts/utils/generate_{lef,lib,verilog}.py
+  ASAP7 example cfg                  (example_cfgs/asap7.cfg —
+                                      header comment "ABKGroup's
+                                      FakeRAM2.0 config")
+
+
+VLSIDA modifications (this fork)
+--------------------------------
+
+    https://github.com/VLSIDA/bsg_fakeram
+    Maintained by the VLSIDA group, UC Santa Cruz, for the HighTide
+    benchmark suite.
+
+Carried on top of an earlier VLSIDA branch that added the multi-port
+example cfgs, banking knob, cacti retry-on-failure, sky130 hi-density
+example, etc. The branch `asap7-area-calib-v2` adds:
+
+  - `write_granularity` end-to-end
+      Existing scaffolding in `class_memory.py` had a `write_granularity`
+      field but its consumers (`generate_lib.py`, `generate_lef.py`,
+      `generate_verilog.py`) mis-sized the wmask bus: LIB hardcoded
+      `bits // 8`, LEF iterated to `bits` instead of `wmask_bits`, and
+      Verilog used the bus-count (`num_wmask`) as the bus-width. Default
+      is `8` (byte-granular). Setting `write_granularity: 1` emits a
+      per-bit mask end-to-end, which the Black-Parrot bsg_mem_*_synth
+      flavours need. (commit `097b904`)
+
+  - asap7 area calibration in `area.py`
+      The FakeRAM2.0 formula gave ~12x denser-than-real macros for
+      typical asap7 SRAMs (1.2x periphery overhead, fixed column_mux=3
+      regardless of word width). Recalibrated against the ASAP7 6T
+      bitcell published in Clark et al., Microelectronics Journal 2016:
+
+        PERIPHERY_MULT_PER_DIM = 2.5      (was 1.2)
+        column_mux = picked dynamically from {1,2,4,...,256} to land
+                     the bitcell array near 1.5:1 aspect.
+
+      An 8 Kb 1rw mem goes from 6.2 x 56.2 um (350 um^2, aspect 9:1)
+      to 34.6 x 43.2 um (1493 um^2, aspect 1.25:1). (commit `9207991`,
+      `27a9ba1`)
+
+  - sky130hd analytical path
+      Cacti picks small column_mux for the deep-narrow memories
+      (cnn's 16 x 32K) and emits 30:1 aspect macros. Routed sky130hd
+      through the same analytical formula as asap7, with bitcell
+      dimensions from skywater-pdk OpenRAM 6T SRAM (1.07 x 1.74 um,
+      ~1.86 um^2). nangate45 stays on Cacti. (commit `89b71ff`)
+
+  - Bug fixes in the wmask code paths revealed by the end-to-end
+      tracing: `generate_lib.py` `bus(rw0_wmask_in).bus_type` was
+      pointing at `<name>_DATA` instead of `<name>_WMASK`;
+      `generate_lef.py` top-side wmask loop iterated to `bits` instead
+      of `wmask_bits`; `generate_verilog.py` had `has_wmask` hardcoded
+      `True` ignoring `mem.has_wmask`.
+
+
+Per-file attribution
+--------------------
+
+Where a file is a hybrid of multiple upstreams, the per-file header
+comment names them all. The single clearest case is `scripts/utils/
+area.py`, which originated in FakeRAM2.0 and is not present in BSG's
+bsg_fakeram; the file's header credits ABKGroup directly.
