@@ -1,14 +1,25 @@
-## FakeRAM2.0 (ABKGroup) area calculation for asap7 tech ##
+## Originally FakeRAM2.0 (ABKGroup) area calculation for asap7 tech;
+## extended here for sky130hd using OpenRAM bitcell data.
 import math
 
 
-# Calibrated against the published ASAP7 6T SRAM bitcell (Clark et al.,
-# "ASAP7: A 7-nm finFET predictive PDK", Microelectronics Journal 2016).
-# The bitcell is 0.108 x 0.27 um (2 contacted-poly-pitches wide x 10 fin-pitches
-# tall = 0.0292 um^2). Total SRAM area = bitcell_array * PERIPHERY_MULT_PER_DIM
-# in each dimension, where PERIPHERY_MULT_PER_DIM ~= 2.5 covers the row decoder,
-# wordline drivers, sense amps, write drivers, column muxes, and control logic
-# typical of embedded SRAMs at 1-256 Kb sizes. (~6.25x bitcell-array area.)
+# Per-technology 6T SRAM bitcell dimensions (width_um, height_um).
+#  - asap7   : 0.108 x 0.270 um — published in Clark et al.,
+#              "ASAP7: A 7-nm finFET predictive PDK",
+#              Microelectronics Journal 2016 (2 contacted-poly-pitches x
+#              10 fin-pitches; 0.0292 um^2 bitcell).
+#  - sky130hd: 1.070 x 1.740 um — published bitcell from the
+#              skywater-pdk OpenRAM 6T SRAM (~1.86 um^2 bitcell).
+TECH_BITCELL_UM = {
+    7:   (0.108, 0.270),
+    130: (1.070, 1.740),
+}
+
+# Total SRAM area = bitcell_array * PERIPHERY_MULT_PER_DIM in each
+# dimension, where PERIPHERY_MULT_PER_DIM ~= 2.5 covers the row decoder,
+# wordline drivers, sense amps, write drivers, column muxes, and control
+# logic typical of embedded SRAMs at 1-256 Kb sizes. (~6.25x bitcell-array
+# area.) The same multiplier is used at every tech we support analytically.
 PERIPHERY_MULT_PER_DIM = 2.5
 
 # Target aspect ratio (longer/shorter side) of the bitcell array.
@@ -42,14 +53,18 @@ def _pick_column_mux(width_in_bits, depth, bitcell_w, bitcell_h):
 
 
 def get_macro_dimensions(process, sram_data):
-  fin_pitch_um            = process.fin_pitch_nm / 1000
-  contacted_poly_pitch_um = process.contacted_poly_pitch_nm / 1000
-  width_in_bits           = int(sram_data['width'])
-  depth                   = int(sram_data['depth'])
+  width_in_bits = int(sram_data['width'])
+  depth         = int(sram_data['depth'])
 
-  # ASAP7 6T SRAM bitcell (Clark et al., 2016).
-  bitcell_width  = 2 * contacted_poly_pitch_um  # 0.108 um
-  bitcell_height = 10 * fin_pitch_um            # 0.270 um
+  # Bitcell size is technology-determined; fall back to the asap7 fin /
+  # poly-pitch derivation if a tech-specific value isn't tabulated.
+  if process.tech_nm in TECH_BITCELL_UM:
+    bitcell_width, bitcell_height = TECH_BITCELL_UM[process.tech_nm]
+  else:
+    fin_pitch_um            = process.fin_pitch_nm / 1000
+    contacted_poly_pitch_um = process.contacted_poly_pitch_nm / 1000
+    bitcell_width  = 2 * contacted_poly_pitch_um
+    bitcell_height = 10 * fin_pitch_um
 
   # Dynamically pick column_mux factor so the bitcell array lands near
   # TARGET_ASPECT instead of being slaved to process.column_mux_factor.

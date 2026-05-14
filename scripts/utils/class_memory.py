@@ -64,29 +64,44 @@ class Memory:
     
     print(f'\n\n\n***************************Run for {self.name}***************************\n\n\n')
 
-    if (process.tech_nm == 7):
-      self.tech_node_nm                = 7 
-      self.associativity               = 1 
-      self.access_time_ns = 0.2183
-      self.cycle_time_ns = 0.1566
-      self.standby_leakage_per_bank_mW =  0.1289
-      self.fo4_ps = 9.0632
-      self.height_um, self.width_um    = get_macro_dimensions(process, sram_data)
-      
+    # Per-tech analytical timing/power constants. asap7 numbers were
+    # carried over from FakeRAM2.0; sky130hd numbers are order-of-magnitude
+    # estimates from the OpenRAM 130nm 6T sram characterizations
+    # (sram_1rw1_8_64_sky130: ~1.4 ns access, ~1 ns cycle, ~0.05 mW
+    # standby per bank, ~200 ps FO4, ~0.015 mW per pin). Adjust if real
+    # silicon measurements become available.
+    TECH_ANALYTIC = {
+      7: dict(
+        access_time_ns=0.2183, cycle_time_ns=0.1566,
+        standby_leakage_per_bank_mW=0.1289, fo4_ps=9.0632,
+        pin_dynamic_power_mW=0.0013449,
+      ),
+      130: dict(
+        access_time_ns=1.4, cycle_time_ns=1.0,
+        standby_leakage_per_bank_mW=0.05, fo4_ps=200.0,
+        pin_dynamic_power_mW=0.015,
+      ),
+    }
+    if process.tech_nm in TECH_ANALYTIC:
+      self.tech_node_nm  = process.tech_nm
+      self.associativity = 1
+      for k, v in TECH_ANALYTIC[process.tech_nm].items():
+        setattr(self, k, v)
+      self.height_um, self.width_um = get_macro_dimensions(process, sram_data)
+
       overall_mult = 1
       wmask_mult = 0 if self.has_wmask == False else 0.045
-      # Height and Width Multiplier based on the amount of r, w, and rw ports, 
+      # Height and Width Multiplier based on the amount of r, w, and rw ports,
       # ASSUMING there is more than 1 port
       if int(sram_data['ports']['r']) + int(sram_data['ports']['rw']) + int(sram_data['ports']['w']) > 1:
         r_port_mult = int(sram_data['ports']['r']) * 0.3
         # Add wmask_mult to per-port multipliers for w and rw
-        w_port_mult = int(sram_data['ports']['w']) * (0.25 + wmask_mult)  
+        w_port_mult = int(sram_data['ports']['w']) * (0.25 + wmask_mult)
         rw_port_mult = int(sram_data['ports']['rw']) * (0.4 + wmask_mult)
         overall_mult = (1 + r_port_mult + w_port_mult + rw_port_mult)
       self.height_um = self.height_um * (overall_mult + wmask_mult)
       self.width_um = self.width_um * (overall_mult + wmask_mult)
-      self.pin_dynamic_power_mW = 0.0013449
-    else: 
+    else:
       if output_dir: # Output dir was set by command line option
         p = str(Path(output_dir).expanduser().resolve(strict=False))
         self.results_dir = os.sep.join([p, self.name])
