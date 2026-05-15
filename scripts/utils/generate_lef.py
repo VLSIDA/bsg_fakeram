@@ -150,7 +150,7 @@ def generate_lef( mem ):
         for i in range(math.ceil(bits/4), math.ceil(bits/2)):
             y_right_step  = lef_add_pin( fid, mem, f'rw{ct}_wd_in[{i}]', True, 'R', y_right_step, right_pin_pitch )
         for i in range(math.ceil(bits/2), bits):
-            x_bottom_step = lef_add_pin( fid, mem, f'rw{ct}_wd_in[{i}]', False, 'B', x_bottom_step, bottom_pin_pitch )
+            x_bottom_step = lef_add_pin( fid, mem, f'rw{ct}_wd_in[{i}]', True, 'B', x_bottom_step, bottom_pin_pitch )
       
 
     for ct in range(num_wport) :
@@ -159,7 +159,7 @@ def generate_lef( mem ):
         for i in range(math.ceil(bits/4), math.ceil(bits/2)):
             y_right_step  = lef_add_pin( fid, mem, f'w{ct}_wd_in[{i}]', True, 'R', y_right_step, right_pin_pitch )
         for i in range(math.ceil(bits/2), bits):
-            x_bottom_step = lef_add_pin( fid, mem, f'w{ct}_wd_in[{i}]', False, 'B', x_bottom_step, bottom_pin_pitch )
+            x_bottom_step = lef_add_pin( fid, mem, f'w{ct}_wd_in[{i}]', True, 'B', x_bottom_step, bottom_pin_pitch )
         
         
     for ct in range(num_rwport) :
