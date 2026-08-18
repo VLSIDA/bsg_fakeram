@@ -81,6 +81,22 @@ class Memory:
         standby_leakage_per_bank_mW=0.05, fo4_ps=200.0,
         pin_dynamic_power_mW=0.015,
       ),
+      # gt2n (2nm GAAFET): faster than asap7 (FO4 ~5 ps vs 9 ps).
+      # access_time_ns corrected 2026-08-01: previously 0.10ns, scaled from
+      # sky130hd by FO4 logic-switching ratio (1.4ns / 14x). That anchor was
+      # wrong -- bitline/sense-amp access time is bitcell/array-dominated, not
+      # logic-gate-switching-dominated, so it doesn't scale with FO4 the way
+      # a logic path does (the "SRAM scaling wall": memory timing scales much
+      # slower across nodes than logic speed). Re-anchored to asap7's own
+      # measured 0.2183ns instead -- gt2n and asap7 are both leading-edge
+      # finFET/GAAFET nodes with comparable bitcell physics, so gt2n's access
+      # time should be close to, not a further-scaled-down multiple of,
+      # asap7's. All other values still order-of-magnitude estimates.
+      2: dict(
+        access_time_ns=0.200, cycle_time_ns=0.075,
+        standby_leakage_per_bank_mW=0.10, fo4_ps=5.0,
+        pin_dynamic_power_mW=0.001,
+      ),
     }
     if process.tech_nm in TECH_ANALYTIC:
       self.tech_node_nm  = process.tech_nm
