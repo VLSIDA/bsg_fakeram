@@ -65,7 +65,7 @@ def generate_lib( mem ):
     max_load = 100 * min_driver_in_cap ;# arbitrary (100x driver)
 
     slew_indicies = '%.3f, %.3f' % (min_slew, max_slew) ;# input pin transisiton with between 1xfo4 and 100xfo4
-    load_indicies = '%.3f, %.3f' % (min_load, max_load) ;# output capacitance table between a 1x and 32x inverter
+    load_indicies = '%.6g, %.6g' % (min_load, max_load) ;# output capacitance table between a 1x and 32x inverter
 
     # Start generating the LIB file
 
@@ -185,7 +185,7 @@ def generate_lib( mem ):
     for i in range(int(num_rport)):
       LIB_file.write('    pin(r%s_clk)   {\n' % (i))
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap*5)) ;# Clk pin is usually higher cap for fanout control, assuming an x5 driver.
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap*5)) ;# Clk pin is usually higher cap for fanout control, assuming an x5 driver.
       LIB_file.write('        clock : true;\n')
       LIB_file.write('        min_period           : %.3f ;\n' % (min_period))
       LIB_file.write('        internal_power(){\n')
@@ -204,7 +204,7 @@ def generate_lib( mem ):
     for i in range(int(num_wport)):
       LIB_file.write('    pin(w%s_clk)   {\n' % (i))
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap*5)) ;# Clk pin is usually higher cap for fanout control, assuming an x5 driver.
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap*5)) ;# Clk pin is usually higher cap for fanout control, assuming an x5 driver.
       LIB_file.write('        clock : true;\n')
       LIB_file.write('        min_period           : %.3f ;\n' % (min_period))
       LIB_file.write('        internal_power(){\n')
@@ -223,7 +223,7 @@ def generate_lib( mem ):
     for i in range(int(num_rwport)):
       LIB_file.write('    pin(rw%s_clk)   {\n' % (i))
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap*5)) ;# Clk pin is usually higher cap for fanout control, assuming an x5 driver.
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap*5)) ;# Clk pin is usually higher cap for fanout control, assuming an x5 driver.
       LIB_file.write('        clock : true;\n')
       LIB_file.write('        min_period           : %.3f ;\n' % (min_period))
       LIB_file.write('        internal_power(){\n')
@@ -243,7 +243,7 @@ def generate_lib( mem ):
       LIB_file.write('    bus(rw%s_rd_out)   {\n' % (i))
       LIB_file.write('        bus_type : %s_DATA;\n' % name)
       LIB_file.write('        direction : output;\n')
-      LIB_file.write('        max_capacitance : %.3f;\n' % max_load) ;# Based on 32x inverter being a common max (or near max) inverter
+      LIB_file.write('        max_capacitance : %.6g;\n' % max_load) ;# Based on 32x inverter being a common max (or near max) inverter
       LIB_file.write('        memory_read() {\n')
       LIB_file.write('            address : r%s_addr_in;\n' % (i))
       LIB_file.write('        }\n')
@@ -282,7 +282,7 @@ def generate_lib( mem ):
       LIB_file.write('    bus(r%s_rd_out)   {\n' % (i))
       LIB_file.write('        bus_type : %s_DATA;\n' % name)
       LIB_file.write('        direction : output;\n')
-      LIB_file.write('        max_capacitance : %.3f;\n' % max_load) ;# Based on 32x inverter being a common max (or near max) inverter
+      LIB_file.write('        max_capacitance : %.6g;\n' % max_load) ;# Based on 32x inverter being a common max (or near max) inverter
       LIB_file.write('        memory_read() {\n')
       LIB_file.write('            address : r%s_addr_in;\n' % (i))
       LIB_file.write('        }\n')
@@ -320,7 +320,7 @@ def generate_lib( mem ):
     for i in range(int(num_rwport)) :
       LIB_file.write('    pin(rw%s_we_in)   {\n' % (i))
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin : rw%s_clk;\n' % (i))
       LIB_file.write('            timing_type : setup_rising ;\n')
@@ -376,7 +376,7 @@ def generate_lib( mem ):
     for i in range(int(num_wport)) :
       LIB_file.write('    pin(w%s_we_in)   {\n' % (i))
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin : w%s_clk;\n'% (i))
       LIB_file.write('            timing_type : setup_rising ;\n')
@@ -432,7 +432,7 @@ def generate_lib( mem ):
     for i in range(int(num_rwport)) :
       LIB_file.write('    pin(rw%s_ce_in)   {\n' % (i))
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin : rw%s_clk;\n' % (i))
       LIB_file.write('            timing_type : setup_rising ;\n')
@@ -488,7 +488,7 @@ def generate_lib( mem ):
     for i in range(int(num_rport)) :
       LIB_file.write('    pin(r%s_ce_in)   {\n' % (i))
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin : r%s_clk;\n' % (i))
       LIB_file.write('            timing_type : setup_rising ;\n')
@@ -544,7 +544,7 @@ def generate_lib( mem ):
     for i in range(int(num_wport)) :
       LIB_file.write('    pin(w%s_ce_in)   {\n' % (i))
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin : w%s_clk;\n' % (i))
       LIB_file.write('            timing_type : setup_rising ;\n')
@@ -601,7 +601,7 @@ def generate_lib( mem ):
       LIB_file.write('    bus(rw%s_addr_in)   {\n' % (i))
       LIB_file.write('        bus_type : %s_ADDRESS;\n' % name)
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin : rw%s_clk;\n' % (i))
       LIB_file.write('            timing_type : setup_rising ;\n')
@@ -662,7 +662,7 @@ def generate_lib( mem ):
       LIB_file.write('            clocked_on : "rw%s_clk";\n' % (i))
       LIB_file.write('        }\n')
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin     : rw%s_clk;\n' % (i))
       LIB_file.write('            timing_type     : setup_rising ;\n')
@@ -735,7 +735,7 @@ def generate_lib( mem ):
       LIB_file.write('            clocked_on : "w%s_clk";\n' % (i))
       LIB_file.write('        }\n')
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin     : w%s_clk;\n' % (i))
       LIB_file.write('            timing_type     : setup_rising ;\n')
@@ -809,7 +809,7 @@ def generate_lib( mem ):
         LIB_file.write('            clocked_on : "rw%s_clk";\n' % (i))
         LIB_file.write('        }\n')
         LIB_file.write('        direction : input;\n')
-        LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+        LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
         LIB_file.write('        timing() {\n')
         LIB_file.write('            related_pin     : rw%s_clk;\n' % (i))
         LIB_file.write('            timing_type     : setup_rising ;\n')
@@ -882,7 +882,7 @@ def generate_lib( mem ):
         LIB_file.write('            clocked_on : "w%s_clk";\n' % (i))
         LIB_file.write('        }\n')
         LIB_file.write('        direction : input;\n')
-        LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+        LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
         LIB_file.write('        timing() {\n')
         LIB_file.write('            related_pin     : w%s_clk;\n' % (i))
         LIB_file.write('            timing_type     : setup_rising ;\n')
@@ -951,7 +951,7 @@ def generate_lib( mem ):
       LIB_file.write('    bus(r%s_addr_in)   {\n' % (i))
       LIB_file.write('        bus_type : %s_ADDRESS;\n' % name)
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin : r%s_clk;\n' % (i))
       LIB_file.write('            timing_type : setup_rising ;\n')
@@ -1008,7 +1008,7 @@ def generate_lib( mem ):
       LIB_file.write('    bus(w%s_addr_in)   {\n' % (i))
       LIB_file.write('        bus_type : %s_ADDRESS;\n' % name)
       LIB_file.write('        direction : input;\n')
-      LIB_file.write('        capacitance : %.3f;\n' % (min_driver_in_cap))
+      LIB_file.write('        capacitance : %.6g;\n' % (min_driver_in_cap))
       LIB_file.write('        timing() {\n')
       LIB_file.write('            related_pin : w%s_clk;\n' % (i))
       LIB_file.write('            timing_type : setup_rising ;\n')
