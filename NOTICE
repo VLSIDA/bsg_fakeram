@@ -74,7 +74,7 @@ VLSIDA modifications (this fork)
 
 Carried on top of an earlier VLSIDA branch that added the multi-port
 example cfgs, banking knob, cacti retry-on-failure, sky130 hi-density
-example, etc. The branch `asap7-area-calib-v2` adds:
+example, etc. This fork's `master` adds:
 
   - `write_granularity` end-to-end
       Existing scaffolding in `class_memory.py` had a `write_granularity`
