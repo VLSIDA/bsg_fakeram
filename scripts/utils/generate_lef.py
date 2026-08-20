@@ -58,7 +58,7 @@ def generate_lef( mem ):
     metalPrefix    = mem.process.metalPrefix
     flip           = mem.process.flipPins.lower() == 'true'
     pin_height = mem.process.LRheight_um
-    supply_pin_layer = '%s4' % metalPrefix
+    supply_pin_layer = mem.process.PSpinLayer if mem.process.PSpinLayer else '%s4' % metalPrefix
     
     #########################################
     # Calculate pin spacing (pitch) AND split pins around the four sides of the macro.

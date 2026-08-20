@@ -47,9 +47,10 @@ class Process:
     self.snapWidth_nm   = int(json_data['snapWidth_nm']) if 'snapWidth_nm' in json_data else 1
     self.snapHeight_nm  = int(json_data['snapHeight_nm']) if 'snapHeight_nm' in json_data else 1
     self.flipPins       = str(json_data['flipPins']) if 'flipPins' in json_data else 'false'
-    # Explicit layer overrides for LR and TB pins (overrides flipPins layer logic)
+    # Explicit layer overrides for LR, TB, and supply (PS) pins (overrides flipPins layer logic)
     self.LRpinLayer     = str(json_data['LRpinLayer']) if 'LRpinLayer' in json_data else ''
     self.TBpinLayer     = str(json_data['TBpinLayer']) if 'TBpinLayer' in json_data else ''
+    self.PSpinLayer     = str(json_data['PSpinLayer']) if 'PSpinLayer' in json_data else ''
     
     self.vlogTimingCheckSignalExpansion = bool(json_data['vlogTimingCheckSignalExpansion']) if 'vlogTimingCheckSignalExpansion' in json_data else False
 

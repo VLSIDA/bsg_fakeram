@@ -105,6 +105,19 @@ assumed to be vertical. This means that signal pins will be on metal 4 and the
 supply straps (also on metal 4) will be horizontal. If set to true then metal 1
 is assumed to be horizontal. This means that signal pins will be on metal 3 and
 the supply straps (on metal 4) will be vertical. By default, `flipPins = false`.
+`flipPins` continues to govern the supply-strap orientation even when
+`LRpinLayer`/`TBpinLayer`/`PSpinLayer` are used to override the signal/supply
+pin layers below — the two are independent knobs, so overriding the layers
+does not change strap direction, and the pair must be kept mutually
+consistent by hand.
+
+`LRpinLayer` / `TBpinLayer` / `PSpinLayer` ***(Optional)*** - Explicit metal
+layer name (e.g. `"M2"`) for the **left/right** signal pins, **top/bottom**
+signal pins, and supply (VDD/VSS) straps, respectively. Overrides the layer
+that would otherwise be derived from `flipPins`. Use this for platforms whose
+pin layers can't be expressed by the `flipPins` heuristic alone (e.g. a
+process that puts L/R pins on M2 and T/B pins on M3). Unset by default, in
+which case the `flipPins`-derived layer is used.
 
 `srams` - A list of SRAMs to generate. Each sram should have: 
 - `name` - the name associated with the sram config in the SRAM's `.lef`, `.lib`, and `.v` files
