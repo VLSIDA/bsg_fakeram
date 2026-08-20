@@ -58,7 +58,7 @@ def generate_lef( mem ):
     metalPrefix    = mem.process.metalPrefix
     flip           = mem.process.flipPins.lower() == 'true'
     pin_height = mem.process.LRheight_um
-    supply_pin_layer = '%s4' % metalPrefix
+    supply_pin_layer = mem.process.PSpinLayer if mem.process.PSpinLayer else '%s4' % metalPrefix
     
     #########################################
     # Calculate pin spacing (pitch) AND split pins around the four sides of the macro.
@@ -305,10 +305,14 @@ def lef_add_pin(fid, mem, pin_name, is_input, side, cursor, pitch):
     layer = mem.process.metalPrefix + ('3' if mem.process.flipPins.lower() == 'true' else '4')
     if (side == 'T' or side == 'B'):
         # Switch layers for preferred direction based on top/bottom pins
-        layer = mem.process.metalPrefix + '2' if layer == mem.process.metalPrefix + '3' else mem.process.metalPrefix + '3' 
+        layer = mem.process.metalPrefix + '2' if layer == mem.process.metalPrefix + '3' else mem.process.metalPrefix + '3'
+        if mem.process.TBpinLayer:
+            layer = mem.process.TBpinLayer
         pw  = mem.process.TBwidth_um
         ph  = mem.process.TBheight_um
     else:
+        if mem.process.LRpinLayer:
+            layer = mem.process.LRpinLayer
         pw  = mem.process.LRwidth_um
         ph  = mem.process.LRheight_um
     

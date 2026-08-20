@@ -10,7 +10,23 @@ import math
 #              10 fin-pitches; 0.0292 um^2 bitcell).
 #  - sky130hd: 1.070 x 1.740 um — published bitcell from the
 #              skywater-pdk OpenRAM 6T SRAM (~1.86 um^2 bitcell).
+#  - gt2n    : 0.0917 x 0.2291 um (~0.021 um^2) — TSMC's disclosed 2nm-class
+#              (N2) high-density SRAM bitcell area ("A 38.1Mb/mm2 SRAM in a
+#              2nm-CMOS-Nanosheet Technology", research.tsmc.com/page/
+#              memory/4.html; no published W x H breakdown for that figure,
+#              so the area alone is the sourced quantity). Split at a 2.5
+#              height:width aspect matching asap7's real bitcell aspect
+#              (0.270/0.108 = 2.5), not sky130hd's (1.626) — asap7 is a
+#              FinFET predictive PDK, a much closer device-architecture
+#              analog to gt2n's GAAFET nanosheet transistors than
+#              sky130hd's 130nm planar bulk process, even though neither is
+#              a literal GAA measurement. Reflects the real "SRAM scaling
+#              wall": SRAM bitcell area scales far slower than logic across
+#              process nodes, so gt2n's bitcell is much larger relative to
+#              its very fine row pitch than a naive logic-scaled estimate
+#              would give.
 TECH_BITCELL_UM = {
+    2:   (0.0917, 0.2291),
     7:   (0.108, 0.270),
     130: (1.070, 1.740),
 }

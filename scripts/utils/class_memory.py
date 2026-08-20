@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 from utils.cacti_config import cacti_config
-from utils.area import get_macro_dimensions
+from utils.area import get_macro_dimensions, TECH_BITCELL_UM
 ################################################################################
 # MEMORY CLASS
 #
@@ -71,6 +71,25 @@ class Memory:
     # standby per bank, ~200 ps FO4, ~0.015 mW per pin). Adjust if real
     # silicon measurements become available.
     TECH_ANALYTIC = {
+      # gt2n (2nm GAAFET): faster than asap7 (FO4 ~5 ps vs 9 ps), but
+      # access_time_ns and cycle_time_ns are anchored to asap7's own
+      # measured values (0.2183ns / 0.1566ns) rather than scaled by the
+      # FO4 ratio -- bitline/sense-amp timing is bitcell/array-dominated,
+      # not logic-gate-switching-dominated, so it doesn't scale with FO4
+      # the way a logic path does (the "SRAM scaling wall": memory timing
+      # scales much slower across nodes than logic speed). gt2n and asap7
+      # are both leading-edge finFET/GAAFET nodes with comparable bitcell
+      # physics, so gt2n's access/cycle time should be close to asap7's,
+      # not a further FO4-scaled-down multiple of it; cycle_time_ns holds
+      # the same ~0.72 cycle/access ratio asap7 and sky130hd both show.
+      2: dict(
+        access_time_ns=0.200,  # asap7's 0.2183 * ~90%
+        cycle_time_ns=0.1435,  # access_time_ns * asap7/sky130hd's ~0.72 cycle/access ratio
+        standby_leakage_per_bank_mW=0.10, fo4_ps=5.0,
+        pin_dynamic_power_mW=0.001,
+        cap_input_pf=0.000488,  # gt2_6t_buf_x1_w31_lvt input cap (real GT2N PDK min-driver cell)
+        t_setup_ns=0.007, t_hold_ns=0.007,  # gt2_6t_dffasync_x1_w31_lvt D-vs-CLK, nominal-slew corner
+      ),
       7: dict(
         access_time_ns=0.2183, cycle_time_ns=0.1566,
         standby_leakage_per_bank_mW=0.1289, fo4_ps=9.0632,
@@ -83,6 +102,12 @@ class Memory:
       ),
     }
     if process.tech_nm in TECH_ANALYTIC:
+      assert process.tech_nm in TECH_BITCELL_UM, (
+        f"tech_nm={process.tech_nm} has an analytical timing entry in "
+        f"TECH_ANALYTIC but no bitcell entry in TECH_BITCELL_UM (area.py) -- "
+        f"add one, or get_macro_dimensions() will silently fall back to "
+        f"requiring fin_pitch_nm/contacted_poly_pitch_nm instead."
+      )
       self.tech_node_nm  = process.tech_nm
       self.associativity = 1
       for k, v in TECH_ANALYTIC[process.tech_nm].items():
@@ -154,7 +179,11 @@ class Memory:
 
       
     
-    self.cap_input_pf = 0.005
+    # nangate45 (CACTI path, below) has no override yet -- set it there under
+    # a tech_nm==45 check before this line, not by adding a key to
+    # TECH_ANALYTIC, which would also divert it off the CACTI path entirely.
+    if not hasattr(self, 'cap_input_pf'):  # blanket default; gt2n sets its own above
+      self.cap_input_pf = 0.005
 
     self.tech_node_um = self.tech_node_nm / 1000.0
 
@@ -167,8 +196,10 @@ class Memory:
 
     #self.pin_dynamic_power_mW = (0.5 * self.cap_input_pf * (float(self.process.voltage)**2))*1e9 ;# P = 0.5*CV^2
   
-    self.t_setup_ns = 0.050  ;# arbitrary 50ps setup
-    self.t_hold_ns  = 0.050  ;# arbitrary 50ps hold
+    if not hasattr(self, 't_setup_ns'):  # blanket default; gt2n sets its own above
+      self.t_setup_ns = 0.050  ;# arbitrary 50ps setup
+    if not hasattr(self, 't_hold_ns'):  # blanket default; gt2n sets its own above
+      self.t_hold_ns  = 0.050  ;# arbitrary 50ps hold
 
   # __run_cacti: shell out to cacti to generate a csv file with more data
   # regarding this memory based on the input parameters from the json
